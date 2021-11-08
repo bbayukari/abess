@@ -1791,7 +1791,7 @@ public:
         Xbeta(i) = this->threshold;
       }
     }
-    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) + this->lambda_level * beta.cwiseAbs2().sum();
+    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights);
   }
 
   void sacrifice(T4 &X, T4 &XA, Eigen::VectorXd &y, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, double &coef0, Eigen::VectorXi &A, Eigen::VectorXi &I, Eigen::VectorXd &weights, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size, int N, Eigen::VectorXi &A_ind, Eigen::VectorXd &bd, Eigen::VectorXi &U, Eigen::VectorXi &U_ind, int num)
@@ -1869,7 +1869,7 @@ private:
         Xbeta(i) = this->threshold;
       }
     }
-    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) + this->lambda_level * beta.cwiseAbs2().sum();
+    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights);
   }
   Eigen::VectorXd expect_y(T4 &design, Eigen::VectorXd &coef)
   {
