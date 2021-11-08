@@ -1791,7 +1791,7 @@ public:
         Xbeta(i) = this->threshold;
       }
     }
-    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) / X.rows();
+    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) + this->lambda_level * beta.cwiseAbs2().sum();
   }
 
   void sacrifice(T4 &X, T4 &XA, Eigen::VectorXd &y, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, double &coef0, Eigen::VectorXi &A, Eigen::VectorXi &I, Eigen::VectorXd &weights, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size, int N, Eigen::VectorXi &A_ind, Eigen::VectorXd &bd, Eigen::VectorXi &U, Eigen::VectorXi &U_ind, int num)
@@ -1799,8 +1799,8 @@ public:
     int p = X.cols();
     int n = X.rows();
     Eigen::VectorXd EY = expect_y(XA, beta_A, coef0);
-    Eigen::VectorXd EY_square_weights = EY.array().square() * weights.array();
-    Eigen::VectorXd d = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * beta; // negative gradient direction
+    Eigen::VectorXd W = EY.array().square() * weights.array(); // X^TWX is hessian
+    Eigen::VectorXd d = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * beta; // negative gradient direction of loss
     Eigen::VectorXd betabar = Eigen::VectorXd::Zero(p);
     Eigen::VectorXd dbar = Eigen::VectorXd::Zero(p);
     // we only need N diagonal sub-matriX of hessian of Loss, X^T %*% diag(EY^2) %*% X is OK, but waste.
@@ -1810,7 +1810,7 @@ public:
       T4 XG_new = XG;
       for (int j = 0; j < g_size(i); j++)
       {
-        XG_new.col(j) = XG.col(j).cwiseProduct(EY_square_weights);
+        XG_new.col(j) = XG.col(j).cwiseProduct(W);
       }
       // hessianG is the ith group diagonal sub-matriX of hessian matriX of Loss.
       Eigen::MatrixXd hessianG = XG_new.transpose() * XG + 2 * this->lambda_level * Eigen::MatrixXd::Identity(g_size(i), g_size(i));
@@ -1831,6 +1831,7 @@ public:
       bd(I[i]) = dbar.segment(g_indeX(I[i]), g_size(I[i])).squaredNorm() / g_size(I[i]);
     }
   }
+  
   double effective_number_of_parameter(T4 &X, T4 &XA, Eigen::VectorXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, double &coef0)
   {
     if (this->lambda_level == 0.)
@@ -1868,7 +1869,7 @@ private:
         Xbeta(i) = this->threshold;
       }
     }
-    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) / design.rows();
+    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) + this->lambda_level * beta.cwiseAbs2().sum();
   }
   Eigen::VectorXd expect_y(T4 &design, Eigen::VectorXd &coef)
   {
