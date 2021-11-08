@@ -27,6 +27,7 @@
   important.search = NULL,
   warm.start = TRUE,
   nfolds = 5,
+  foldid = NULL,
   cov.update = FALSE,
   newton = c("exact", "approx"),
   newton.thresh = 1e-06,
@@ -128,6 +129,9 @@ it would greatly reduce runtimes. Default: \code{important.search = 128}.}
 \item{warm.start}{Whether to use the last solution as a warm start. Default is \code{warm.start = TRUE}.}
 
 \item{nfolds}{The number of folds in cross-validation. Default is \code{nfolds = 5}.}
+
+\item{foldid}{an optional integer vector of values between 1, ..., nfolds identifying what fold each observation is in. 
+The default \code{foldid = NULL} would generate a random foldid.}
 
 \item{cov.update}{A logical value only used for \code{family = "gaussian"}. If \code{cov.update = TRUE},
 use a covariance-based implementation; otherwise, a naive implementation.
