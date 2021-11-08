@@ -129,7 +129,8 @@ generate.data <- function(n,
                           uniform.max = 1,
                           y.dim = 3,
                           class.num = 3,
-                          seed = 1) {
+                          seed = 1,
+                          coef0 = 10) {
   # sigma <- 1
 
   family <- match.arg(family)
@@ -322,7 +323,7 @@ generate.data <- function(n,
     sigma <- sqrt((t(beta) %*% Sigma %*% beta) / snr)
     eta <- x %*% beta + stats::rnorm(n, 0, sigma)
     # set coef_0 as + abs(min(eta)) + 1
-    eta <- eta + abs(min(eta)) + 10
+    eta <- eta + abs(min(eta)) + coef0
     # set the shape para of gamma uniformly in [0.1,100.1]
     shape_para <- 100 * runif(n) + 0.1
     y <- stats::rgamma(n,shape=shape_para,rate=shape_para*eta)
