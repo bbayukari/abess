@@ -3,6 +3,7 @@
 
 #include "Algorithm.h"
 #include "model_fit.h"
+#include <iostream>//test
 
 using namespace std;
 
@@ -1897,6 +1898,416 @@ private:
     }
     return eta.cwiseInverse(); // EY is E(Y) = g^-1(Xb), where link func g(u)=1/u in Gamma model.
   }
+};
+
+
+
+template <class T4>
+class abessOrdinal : public Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, T4>
+{
+public:
+  abessOrdinal(int algorithm_type, int model_type, int maX_iter = 30, int primary_model_fit_maX_iter = 10, double primary_model_fit_epsilon = 1e-8, bool warm_start = true, int eXchange_num = 5, bool approXimate_Newton = false, Eigen::VectorXi always_select = Eigen::VectorXi::Zero(0), int splicing_type = 0, int sub_search = 0) : Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, T4>::Algorithm(algorithm_type, model_type, maX_iter, primary_model_fit_maX_iter, primary_model_fit_epsilon, warm_start, eXchange_num, approXimate_Newton, always_select, false, splicing_type, sub_search){};
+  ~abessOrdinal(){};
+
+  bool primary_model_fit(T4 &X, Eigen::MatrixXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, Eigen::VectorXd &coef0, double loss0, Eigen::VectorXi &A, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size)
+  {
+    int n = X.rows();
+    int p = X.cols();
+    int k = coef0.size();
+    // test
+    if(y.rows()!=n || y.cols()!=k+1 || beta.size()!=p || weights.size()!=n){
+      exit(1919);
+    }
+    //make sure that coef0 is increasing
+    for(int i=1; i<k; i++){
+      if(coef0(i) <= coef0(i-1)){
+        for(int j=0; j<k; j++){
+          coef0(j) = j;
+        }
+        break;
+      }
+    }
+    // expand beta
+    Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
+    coef.head(k) = coef0;
+    coef.tail(p) = beta;
+
+    double step = 1;
+    Eigen::VectorXd g(p + k);
+    Eigen::VectorXd coef_new;
+    Eigen::VectorXd h_diag = Eigen::VectorXd::Zero(k+p);
+    Eigen::VectorXd xbeta;
+    Eigen::MatrixXd logit(n,k);
+    Eigen::MatrixXd P(n,k+1);
+    Eigen::VectorXd W(n);
+    Eigen::MatrixXd D = Eigen::MatrixXd::Zero(n, k);
+    Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
+    Eigen::VectorXd desend_direction; // coef_new = coef + step * desend_direction
+    Eigen::MatrixXd A(n,k), B(k,k); // A,B is a temporary variable
+
+    double loglik_new = DBL_MAX, loglik = -neg_loglik_loss(X, y, weights, coef.tail(p), coef.head(k), A, g_indeX, g_size);
+
+    for (int j = 0; j < this->primary_model_fit_max_iter; j++){
+      xbeta = X * coef.tail(p);
+      // compute logit
+      for(int i1=0; i1<n; i1++){
+        for(int i2=0; i2<k; i2++){
+          logit(i1,i2) = 1.0/(1+exp(-xbeta(i1)-coef(i2)))
+        }
+      }
+      // compute P
+      for(int i1=0; i1<n; i1++){
+        for(int i2=0; i2<k+1; i2++){
+          switch (i2)
+          {
+          case 0:
+            P(i1,0) = logit(i1,0);
+            break;
+          case k:
+            P(i1,k) = 1-logit(i1,k-1);
+            break;
+          default:
+            P(i1,i2) = logit(i1,i2) - logit(i1,i2-1);
+            break;
+          }  
+        }
+      }
+      // compute dL
+      for(int i1=0; i1<n; i1++){ 
+        int i2 = 0;
+        for(i2=0; i2<k+1; i2++){
+          if(y(i1,i2)!=0)
+            break;
+        }// y(i1,i2)==1
+        switch (i2){
+          case k:
+            for(int i3=0; i3<k; i3++)
+              dL(i1,i3) = -1.0/P(i1,k);
+            break;
+          default:
+            dL(i1,i2) = 1.0 / P(i1,i2);
+            break;
+        }        
+      }
+      A.rightCols(k-1) = dL.leftCols(k-1);
+      A.col(0) = Eigen::VectorXd::Zero(n);
+      dL -= A;
+      // compute D
+      for(int i1=0; i1<n; i1++){
+        for(int i2=0; i2<k; i2++){
+          D(i1,i2) = logit(i1,i2)^2*(1-logit(i1,i2))^2;
+        }
+      }
+
+      // compute negtive gradient direction
+      A = D.cwiseProduct(dL);
+      g.head(k) = weights * A;
+      g.tail(p) = A.rowwise().sum().cwiseProduct(weights) * X - 2*this->lambda_level*coef.tail(p);
+
+      // compute inverse of diag of Hessian
+      for(int i=0; i<n; i++){
+        B = D.row(i).asDiagonal();
+        for(int i1=1; i1<k; i1++){
+          B(i1,i1-1)=-D(i,i1);
+        }
+        B = B.transpose() * (P.row(i).head(k).asDiagonal() + Eigen::MatrixXd::Ones(k,k) / P(i,k)) * B;
+        h_diag.head(k) += weights(i)*B.diagonal();
+        W(i) = weights(i)*B.sum();       
+      }
+      for (int i = 0; i < k; i++){
+        if (h_diag(i) < 1e-7 && h_diag(i) >= 0)
+          h_diag(i) = 1e7;
+        else if(h_diag(i) > -1e-7 && h_diag(i) < 0)
+          h_diag(i) = -1e7;
+        else
+          h_diag(i) = 1.0 / h_diag(i);
+      }
+      for (int i = 0; i < p; i++){
+        h_diag(i+k) = X.col(i).cwiseProduct(W).dot(X.col(i)) + 2 * this->lambda_level; 
+        if (h_diag(i) < 1e-7 && h_diag(i) >= 0)
+          h_diag(i) = 1e7;
+        else if(h_diag(i) > -1e-7 && h_diag(i) < 0)
+          h_diag(i) = -1e7;
+        else
+          h_diag(i) = 1.0 / h_diag(i);
+      }
+
+      desend_direction = g.cwiseProduct(h_diag);
+      coef_new = coef + step * desend_direction; // ApproXimate Newton method
+      loglik_new = -neg_loglik_loss(X, y, weights, coef_new);
+
+      while (loglik_new < loglik && step > this->primary_model_fit_epsilon)
+      {
+        step = step / 2;
+        coef_new = coef + step * desend_direction;
+        loglik_new = -neg_loglik_loss(X, y, weights, coef_new.tail(p), coef_new.head(k), A, g_indeX, g_size);
+      }
+
+      bool condition1 = step < this->primary_model_fit_epsilon;
+      bool condition2 = -(loglik_new + (this->primary_model_fit_max_iter - j - 1) * (loglik_new - loglik)) + this->tau > loss0;
+      if (condition1 || condition2)
+      {
+        break;
+      }
+
+      coef = coef_new;
+      loglik = loglik_new;
+    }
+    
+    beta = coef.tail(p).eval();
+    coef0 = coef.head(k);
+    return true;
+  }
+
+  double neg_loglik_loss(T4 &X, Eigen::MatrixXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, Eigen::VectorXd &coef0, Eigen::VectorXi &A, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size)
+  {
+    int n = X.rows();
+    int p = X.cols();
+    int k = coef0.size();
+    // test
+    if(y.rows()!=n || y.cols()!=k+1 || beta.size()!=p || weights.size()!=n){
+      exit(2041);
+    }
+    for(int i=1; i<k; i++){
+      if(coef0(i) <= coef0(i-1)){
+        std::cout << "coef0 isn't increasing." << std::endl;
+        break;
+      }
+    }
+
+    Eigen::VectorXd xbeta = X * beta;
+    double loss = this->lambda_level * beta.cwiseAbs2().sum();
+
+    double p=0;
+    for(int i=0; i<n; i++){
+      for(int j=0; j<k+1; j++){
+        if(y(i,j)==1){
+          switch (j)
+          {
+          case 0:
+            loss += log(1+exp(-xbeta(i)-coef0(0)));
+            break;
+          case k:
+            loss -= log(1-1.0/(1+exp(-xbeta(i)-coef0(k-1))));
+            break;
+          default:
+            p = 1.0/(1+exp(-xbeta(i)-coef0(j))) - 1.0/(1+exp(-xbeta(i)-coef0(j-1)));
+            if( p < 1e-10 )
+              p = 1e-10;
+            loss -= log(p)
+            break;
+          }
+          break;
+        }  
+      }
+    }
+
+    return loss;
+  }
+
+  void sacrifice(T4 &X, T4 &XA, Eigen::MatrixXd &y, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, Eigen::VectorXd &coef0, Eigen::VectorXi &A, Eigen::VectorXi &I, Eigen::VectorXd &weights, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size, int N, Eigen::VectorXi &A_ind, Eigen::VectorXd &bd, Eigen::VectorXi &U, Eigen::VectorXi &U_ind, int num)
+  {
+    
+    //Eigen::VectorXd EY = expect_y(XA, beta_A, coef0);
+    //Eigen::VectorXd W = EY.array().square() * weights.array(); // X^TWX is hessian
+    //Eigen::VectorXd d = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * beta; // negative gradient direction of loss
+    
+    int n = X.rows();
+    int p = X.cols();
+    int k = coef0.size();
+    // test
+    if(y.rows()!=n || y.cols()!=k+1 || beta.size()!=p || weights.size()!=n){
+      exit(2120);
+    }
+
+    Eigen::VectorXd xbeta;
+    Eigen::MatrixXd logit(n,k);
+    Eigen::MatrixXd P(n,k+1);
+    Eigen::VectorXd W(n);
+    Eigen::VectorXd d(p);
+    Eigen::MatrixXd D = Eigen::MatrixXd::Zero(n, k);
+    Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
+    Eigen::MatrixXd A(n,k), B(k,k); // A,B is a temporary variable
+
+    
+    xbeta = XA * beta_A;
+    // compute logit
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k; i2++){
+        logit(i1,i2) = 1.0/(1+exp(-xbeta(i1)-coef0(i2)))
+      }
+    }
+    // compute P
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k+1; i2++){
+        switch (i2)
+        {
+        case 0:
+          P(i1,0) = logit(i1,0);
+          break;
+        case k:
+          P(i1,k) = 1-logit(i1,k-1);
+          break;
+        default:
+          P(i1,i2) = logit(i1,i2) - logit(i1,i2-1);
+          break;
+        }  
+      }
+    }
+    // compute dL
+    for(int i1=0; i1<n; i1++){ 
+      int i2 = 0;
+      for(i2=0; i2<k+1; i2++){
+        if(y(i1,i2)!=0)
+          break;
+      }// y(i1,i2)==1
+      switch (i2){
+        case k:
+          for(int i3=0; i3<k; i3++)
+            dL(i1,i3) = -1.0/P(i1,k);
+          break;
+        default:
+          dL(i1,i2) = 1.0 / P(i1,i2);
+          break;
+      }        
+    }
+    A.rightCols(k-1) = dL.leftCols(k-1);
+    A.col(0) = Eigen::VectorXd::Zero(n);
+    dL -= A;
+    // compute D
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k; i2++){
+        D(i1,i2) = logit(i1,i2)^2*(1-logit(i1,i2))^2;
+      }
+    }
+
+    // compute negtive gradient direction
+    A = D.cwiseProduct(dL);
+    d = A.rowwise().sum().cwiseProduct(weights) * X - 2*this->lambda_level*beta;
+
+    // compute diag of Hessian
+    for(int i=0; i<n; i++){
+      B = D.row(i).asDiagonal();
+      for(int i1=1; i1<k; i1++){
+        B(i1,i1-1)=-D(i,i1);
+      }
+      B = B.transpose() * (P.row(i).head(k).asDiagonal() + Eigen::MatrixXd::Ones(k,k) / P(i,k)) * B;
+      W(i) = weights(i)*B.sum();       
+    }
+
+    Eigen::VectorXd betabar = Eigen::VectorXd::Zero(p);
+    Eigen::VectorXd dbar = Eigen::VectorXd::Zero(p);
+    // we only need N diagonal sub-matriX of hessian of Loss, X^T %*% diag(EY^2) %*% X is OK, but waste.
+    for (int i = 0; i < N; i++)
+    {
+      T4 XG = X.middleCols(g_indeX(i), g_size(i));
+      T4 XG_new = XG;
+      for (int j = 0; j < g_size(i); j++)
+      {
+        XG_new.col(j) = XG.col(j).cwiseProduct(W);
+      }
+      // hessianG is the ith group diagonal sub-matriX of hessian matriX of Loss.
+      Eigen::MatrixXd hessianG = XG_new.transpose() * XG + 2 * this->lambda_level * Eigen::MatrixXd::Identity(g_size(i), g_size(i));
+      Eigen::MatrixXd phiG;
+      hessianG.sqrt().evalTo(phiG);
+      Eigen::MatrixXd invphiG = phiG.ldlt().solve(Eigen::MatrixXd::Identity(g_size(i), g_size(i))); // this is a way to inverse a matriX.
+      betabar.segment(g_indeX(i), g_size(i)) = phiG * beta.segment(g_indeX(i), g_size(i));
+      dbar.segment(g_indeX(i), g_size(i)) = invphiG * d.segment(g_indeX(i), g_size(i));
+    }
+    int A_size = A.size();
+    int I_size = I.size();
+    for (int i = 0; i < A_size; i++)
+    {
+      bd(A[i]) = betabar.segment(g_indeX(A[i]), g_size(A[i])).squaredNorm() / g_size(A[i]);
+    }
+    for (int i = 0; i < I_size; i++)
+    {
+      bd(I[i]) = dbar.segment(g_indeX(I[i]), g_size(I[i])).squaredNorm() / g_size(I[i]);
+    }
+  }
+  
+  double effective_number_of_parameter(T4 &X, T4 &XA, Eigen::MatrixXd &y, Eigen::VectorXd &weights, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, Eigen::VectorXd &coef0)
+  {
+    if (this->lambda_level == 0.)
+      return XA.cols();
+
+    if (XA.cols() == 0)
+      return 0.;
+
+    int n = X.rows();
+    int p = X.cols();
+    int k = coef0.size();
+    // test
+    if(y.rows()!=n || y.cols()!=k+1 || beta.size()!=p || weights.size()!=n){
+      exit(2120);
+    }
+
+    Eigen::VectorXd xbeta;
+    Eigen::MatrixXd logit(n,k);
+    Eigen::MatrixXd P(n,k+1);
+    Eigen::VectorXd W(n);
+    Eigen::MatrixXd D = Eigen::MatrixXd::Zero(n, k);
+    Eigen::MatrixXd A(n,k), B(k,k); // A,B is a temporary variable
+
+    
+    xbeta = XA * beta_A;
+    // compute logit
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k; i2++){
+        logit(i1,i2) = 1.0/(1+exp(-xbeta(i1)-coef0(i2)))
+      }
+    }
+    // compute P
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k+1; i2++){
+        switch (i2)
+        {
+        case 0:
+          P(i1,0) = logit(i1,0);
+          break;
+        case k:
+          P(i1,k) = 1-logit(i1,k-1);
+          break;
+        default:
+          P(i1,i2) = logit(i1,i2) - logit(i1,i2-1);
+          break;
+        }  
+      }
+    }
+    // compute D
+    for(int i1=0; i1<n; i1++){
+      for(int i2=0; i2<k; i2++){
+        D(i1,i2) = logit(i1,i2)^2*(1-logit(i1,i2))^2;
+      }
+    }
+
+    // compute diag of Hessian
+    for(int i=0; i<n; i++){
+      B = D.row(i).asDiagonal();
+      for(int i1=1; i1<k; i1++){
+        B(i1,i1-1)=-D(i,i1);
+      }
+      B = B.transpose() * (P.row(i).head(k).asDiagonal() + Eigen::MatrixXd::Ones(k,k) / P(i,k)) * B;
+      W(i) = weights(i)*B.sum();       
+    }
+    
+
+    T4 XA_new = XA;
+    for (int j = 0; j < XA.cols(); j++)
+    {
+      XA_new.col(j) = XA.col(j).cwiseProduct(W);
+    }
+    Eigen::MatrixXd XGbar = XA_new.transpose() * XA;
+
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> adjoint_eigen_solver(XGbar);
+    double enp = 0.;
+    for (int i = 0; i < adjoint_eigen_solver.eigenvalues().size(); i++)
+    {
+      enp += adjoint_eigen_solver.eigenvalues()(i) / (adjoint_eigen_solver.eigenvalues()(i) + this->lambda_level);
+    }
+    return enp;
+  }
+
 };
 
 #endif // SRC_ALGORITHMGLM_H
