@@ -144,7 +144,7 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
     }
     else if(model_type == 9)
     {
-      algorithm_uni_dense = new abessOrdinal<Eigen::MatrixXd>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, splicing_type, sub_search);
+      algorithm_mul_dense = new abessOrdinal<Eigen::MatrixXd>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, splicing_type, sub_search);               
     }
   }
   else
@@ -225,7 +225,7 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
         }
         else if(model_type == 9)
         {
-          algorithm_list_uni_dense[i] = new abessOrdinal<Eigen::MatrixXd>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, splicing_type, sub_search);
+          algorithm_list_mul_dense[i] = new abessOrdinal<Eigen::MatrixXd>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, splicing_type, sub_search);
         }
       }
       else
@@ -293,9 +293,7 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
                                                                                        cv_fold_id,
                                                                                        algorithm_uni_dense, algorithm_list_uni_dense);
     }
-    else
-    {
-
+    else{
       out_result = abessCpp<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd>(x, y, n, p,
                                                                                                 data_type, weight, sigma,
                                                                                                 is_normal,
