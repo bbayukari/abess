@@ -120,7 +120,7 @@ generate.data <- function(n,
                           rho = 0,
                           family = c("gaussian", "binomial", "poisson", 
                                      "cox", "mgaussian", "multinomial", 
-                                     "gamma"),
+                                     "gamma","ordinal"),
                           beta = NULL,
                           cortype = 1,
                           snr = 10,
@@ -136,7 +136,7 @@ generate.data <- function(n,
   family <- match.arg(family)
   if (family == "mgaussian") {
     y_dim <- y.dim
-  } else if (family == "multinomial") {
+  } else if (family == "multinomial" || family == "ordinal") {
     y_dim <- class.num
   } else {
     y_dim <- 1
@@ -152,7 +152,7 @@ generate.data <- function(n,
   # }
 
   multi_y <- FALSE
-  if (family %in% c("mgaussian", "multinomial")) {
+  if (family %in% c("mgaussian", "multinomial","ordinal")) {
     multi_y <- TRUE
   }
 
@@ -307,6 +307,45 @@ generate.data <- function(n,
     prob_y <- x %*% beta
     prob_y <- exp(prob_y)
     prob_y <- sweep(prob_y, MARGIN = 1, STATS = rowSums(prob_y), FUN = "/")
+    y <- apply(prob_y, 1, function(x) {
+      sample(0:(length(x) - 1), size = 1, prob = x)
+    })
+  }
+  if (family == "ordinal") {
+    m <- 2.5 * sqrt(2 * log(p) / n)
+    M <- 50 * m
+    if (is.null(input_beta)) {
+      beta <- numeric(p)
+      beta[nonzero] <- stats::runif(support.size, m, M)
+    } else {
+      beta <- input_beta
+    }
+    
+    X <- x
+    xbeta = X %*% beta
+    # compute logit
+    logit <- matrix(0,n,y_dim-1)
+    for(i1 in 1:n){
+      for(i2 in 1:y_dim-1){
+        logit[i1,i2] = 1.0/(1+exp(-xbeta[i1]-i2))
+      }
+    }
+    # compute prob_y
+    prob_y <- matrix(0,n,y_dim)
+    for(i1 in 1:n){
+      for(i2 in 1:y_dim){
+        if(i2==1){
+          prob_y[i1,1] = logit[i1,1]
+        }
+        else if(i2==y_dim){
+          prob_y[i1,y_dim] = 1-logit[i1,y_dim-1]
+        }
+        else{
+          prob_y[i1,i2] = logit[i1,i2] - logit[i1,i2-1];
+        } 
+      }
+    }
+    
     y <- apply(prob_y, 1, function(x) {
       sample(0:(length(x) - 1), size = 1, prob = x)
     })

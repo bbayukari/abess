@@ -483,7 +483,7 @@ abess.default <- function(x,
     if (family == "binomial") {
       y <- as.numeric(y) - 1
     }
-    if (family == "multinomial") {
+    if ( family %in% c("multinomial","ordinal")) {
       y <- model.matrix(~ factor(as.numeric(y) - 1) + 0)
       colnames(y) <- NULL
     }
@@ -954,7 +954,7 @@ abess.default <- function(x,
   result[["best.size"]] <- s_list[which.min(result[["tune.value"]])]
   names(result)[which(names(result) == "coef0_all")] <- "intercept"
   if (family %in% MULTIVARIATE_RESPONSE) {
-    if (family == "multinomial") {
+    if ( family %in% c("multinomial","ordinal")) {
       result[["intercept"]] <- lapply(result[["intercept"]], function(x) {
         x <- x[-y_dim]
       })

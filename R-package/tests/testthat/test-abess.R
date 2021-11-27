@@ -515,3 +515,21 @@ test_that("abess (gamma) works", {
   
   test_batch(abess_fit, dataset, Gamma)
 })
+
+test_that("abess (ordinal) works", {
+ 
+  n <- 2000
+  p <- 100
+  support.size <- 3
+  dataset <- generate.data(n, p, support.size,
+                           family = "ordinal",class.num = 3, seed = 1)
+  
+    abess_fit <- abess(
+    dataset[["x"]],
+    dataset[["y"]],
+    family = "ordinal",
+    tune.type = "cv", 
+    support.size = 0:support.size
+  )
+  
+})
