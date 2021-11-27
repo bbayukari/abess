@@ -529,7 +529,9 @@ test_that("abess (ordinal) works", {
     dataset[["y"]],
     family = "ordinal",
     tune.type = "cv", 
-    support.size = 0:support.size
+    support.size = support.size,
+    always.include = which(dataset$beta != 0),
+    max.splicing.iter = 1
   )
   
 })
