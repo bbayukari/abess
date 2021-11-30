@@ -595,7 +595,7 @@ abess_model_matrix <- function(object,
   data
 }
 
-MULTIVARIATE_RESPONSE <- c("mgaussian", "multinomial")
+MULTIVARIATE_RESPONSE <- c("mgaussian", "multinomial","ordinal")
 
 .onUnload <- function(libpath) {
   library.dynam.unload("abess", libpath)

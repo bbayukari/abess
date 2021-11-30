@@ -1,7 +1,13 @@
 library(abess)
+<<<<<<< Updated upstream
 library(testthat)
 library(ordinalNet)
 test_that("abess (ordinal) works", {
+=======
+#library(testthat)
+library(ordinalNet)
+#test_that("abess (ordinal) works", {
+>>>>>>> Stashed changes
   
   n <- 2000
   p <- 10
@@ -33,4 +39,7 @@ test_that("abess (ordinal) works", {
   coef(ordinalNet_fit)
   dataset[["beta"]][true_beta_idx]
   abess_fit[["beta"]][[as.character(support.size)]][fit_beta_idx,1]
+<<<<<<< Updated upstream
 })
+=======
+>>>>>>> Stashed changes

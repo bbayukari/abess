@@ -3,7 +3,11 @@
 
 #include "Algorithm.h"
 #include "model_fit.h"
+<<<<<<< Updated upstream
 
+=======
+#include <iostream>//test
+>>>>>>> Stashed changes
 using namespace std;
 
 template <class T4>

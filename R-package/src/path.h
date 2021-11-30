@@ -95,6 +95,11 @@ void sequential_path_cv(Data<T1, T2, T3, T4> &data, Eigen::MatrixXd sigma, Algor
 
     for (int i = 0; i < sequence_size; i++)
     {
+<<<<<<< Updated upstream
+=======
+        if(i==0)
+
+>>>>>>> Stashed changes
         for (int j = (1 - pow(-1, i)) * (lambda_size - 1) / 2; j < lambda_size && j >= 0; j = j + pow(-1, i))
         {
 

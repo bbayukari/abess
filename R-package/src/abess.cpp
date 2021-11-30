@@ -91,7 +91,6 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
   omp_set_num_threads(thread);
 
 #endif
-
   int pca_n = -1;
   if (algorithm_type == 7 && n != x.rows())
   {
@@ -178,7 +177,6 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
       algorithm_uni_sparse = new abessPCA<Eigen::SparseMatrix<double>>(algorithm_type, model_type, max_iter, primary_model_fit_max_iter, primary_model_fit_epsilon, is_warm_start, exchange_num, approximate_Newton, always_select, splicing_type, sub_search);
     }
   }
-
   vector<Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::MatrixXd> *> algorithm_list_uni_dense(max(Kfold, thread));
   vector<Algorithm<Eigen::MatrixXd, Eigen::MatrixXd, Eigen::VectorXd, Eigen::MatrixXd> *> algorithm_list_mul_dense(max(Kfold, thread));
   vector<Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, Eigen::SparseMatrix<double>> *> algorithm_list_uni_sparse(max(Kfold, thread));
@@ -261,7 +259,6 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
       }
     }
   }
-
   List out_result;
   if (!sparse_matrix)
   {
@@ -393,7 +390,6 @@ List abessCpp2(Eigen::MatrixXd x, Eigen::MatrixXd y, int n, int p,
                                                                                                             algorithm_mul_sparse, algorithm_list_mul_sparse);
     }
   }
-
   delete algorithm_uni_dense;
   delete algorithm_mul_dense;
   delete algorithm_uni_sparse;
@@ -450,7 +446,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
               Algorithm<T1, T2, T3, T4> *algorithm, vector<Algorithm<T1, T2, T3, T4> *> algorithm_list)
 {
   // to do: -openmp
-
 #ifndef R_BUILD
   std::srand(123);
 #endif
@@ -476,7 +471,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
       }
     }
   }
-
   int M = data.y.cols();
 
   Metric<T1, T2, T3, T4> *metric = new Metric<T1, T2, T3, T4>(ic_type, ic_coef, is_cv, Kfold);
@@ -497,7 +491,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
   }
 
   // calculate loss for each parameter parameter combination
-
   Result<T2, T3> result;
   vector<Result<T2, T3>> result_list(Kfold);
   if (path_type == 1)
@@ -537,7 +530,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
     // }
     gs_path(data, algorithm, algorithm_list, metric, s_min, s_max, sequence, lambda_seq, K_max, epsilon, is_parallel, result);
   }
-
   // Get bestmodel index && fit bestmodel
   int min_loss_index_row = 0, min_loss_index_col = 0, s_size = sequence.size(), lambda_size = lambda_seq.size();
   Eigen::Matrix<T2, Dynamic, Dynamic> beta_matrix(s_size, lambda_size);
@@ -715,7 +707,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
       ic_matrix.minCoeff(&min_loss_index_row, &min_loss_index_col);
     }
   }
-
   // fit best model
   // int best_s = sequence(min_loss_index_row);
   double best_lambda = lambda_seq(min_loss_index_col);
@@ -752,7 +743,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
       best_beta = best_beta * sqrt(double(data.n));
     }
   }
-
   ////////////// Restore all_fit_result for normal ////////////////////////
   // to do
   if (data.is_normal && !sparse_matrix)
@@ -825,7 +815,6 @@ List abessCpp(T4 &x, T1 &y, int n, int p,
   // out_result.add("ic_all", ic_matrix);
   // out_result.add("test_loss_all", test_loss_sum);
 #endif
-
   // Restore best_fit_result for screening
   if (is_screening)
   {

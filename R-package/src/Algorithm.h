@@ -230,7 +230,6 @@ public:
 
   void fit(T4 &train_x, T1 &train_y, Eigen::VectorXd &train_weight, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size, int train_n, int p, int N, Eigen::VectorXi &status, Eigen::MatrixXd sigma)
   {
-
     int T0 = this->sparsity_level;
     // this->status = status;
     this->cox_g = Eigen::VectorXd::Zero(0);
@@ -267,7 +266,6 @@ public:
       this->effective_number = effective_number_of_parameter(train_x, train_x, train_y, train_weight, this->beta, this->beta, this->coef0);
       return;
     }
-
     if (this->model_type == 1 || this->model_type == 5)
     {
       // this->covariance = Eigen::MatrixXd::Zero(train_x.cols(), train_x.cols());
@@ -279,16 +277,13 @@ public:
         this->invPhiG_U.resize(N, 1);
       }
     }
-
     // input: this->beta_init, this->coef0_init, this->A_init, this->I_init
     // for splicing get A;for the others 0;
 
     Eigen::VectorXi A = inital_screening(train_x, train_y, this->beta, this->coef0, this->A_init, this->I_init, this->bd, train_weight, g_index, g_size, N);
-
     Eigen::VectorXi I = Ac(A, N);
     // Eigen::MatrixXi A_list(T0, max_iter + 2);
     // A_list.col(0) = A;
-
     Eigen::VectorXi A_ind = find_ind(A, g_index, g_size, p, N);
     T4 X_A = X_seg(train_x, train_n, A_ind);
     T2 beta_A;
@@ -582,7 +577,6 @@ public:
   Eigen::VectorXi inital_screening(T4 &X, T1 &y, T2 &beta, T3 &coef0, Eigen::VectorXi &A, Eigen::VectorXi &I, Eigen::VectorXd &bd, Eigen::VectorXd &weights,
                                    Eigen::VectorXi &g_index, Eigen::VectorXi &g_size, int &N)
   {
-
     if (bd.size() == 0)
     {
       // variable initialization
@@ -595,7 +589,6 @@ public:
       T4 X_A = X_seg(X, n, A_ind);
       T2 beta_A;
       slice(beta, A_ind, beta_A);
-
       Eigen::VectorXi U = Eigen::VectorXi::LinSpaced(N, 0, N - 1);
       Eigen::VectorXi U_ind = Eigen::VectorXi::LinSpaced(p, 0, p - 1);
       this->sacrifice(X, X_A, y, beta, beta_A, coef0, A, I, weights, g_index, g_size, N, A_ind, bd, U, U_ind, 0);
@@ -604,7 +597,6 @@ public:
         bd(this->always_select(i)) = DBL_MAX;
       }
     }
-
     // get Active-set A according to max_k bd
     Eigen::VectorXi A_new = max_k(bd, this->sparsity_level);
 

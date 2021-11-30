@@ -316,7 +316,7 @@ generate.data <- function(n,
     M <- 50 * m
     if (is.null(input_beta)) {
       beta <- numeric(p)
-      beta[nonzero] <- stats::runif(support.size, m, M)
+      beta[nonzero] <- stats::runif(support.size, m, M)*10
     } else {
       beta <- input_beta
     }
@@ -444,7 +444,7 @@ abess_model_matrix <- function(object, data = environment(object),
   data
 }
 
-MULTIVARIATE_RESPONSE <- c("mgaussian", "multinomial")
+MULTIVARIATE_RESPONSE <- c("mgaussian", "multinomial","ordinal")
 
 .onUnload <- function(libpath) {
   library.dynam.unload("abess", libpath)
