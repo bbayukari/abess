@@ -3,7 +3,6 @@
 
 #include "Algorithm.h"
 #include "model_fit.h"
-#include <iostream>//test
 
 using namespace std;
 
@@ -1914,7 +1913,8 @@ public:
     int n = X.rows();
     int p = X.cols();
     int k = coef0.size();
-
+    //cout << X.rows() << ";" << X.cols() << ";" << y.rows() << ";" << y.cols() << ";" << weights.size() << ";" << beta.rows() << ";" << beta.cols() << ";" << coef0.size() << endl;
+  
     //make sure that coef0 is increasing
     for(int i=1; i<k; i++){
       if(coef0(i) <= coef0(i-1)){
@@ -1927,7 +1927,7 @@ public:
     // expand beta
     Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
     coef.head(k) = coef0;
-    coef.tail(p) = beta.row(0);
+    coef.tail(p) = beta.col(0);
 
     double step = 1;
     Eigen::VectorXd g(p + k);
@@ -2025,7 +2025,7 @@ public:
 
       desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
-      beta.row(0) = coef_new.tail(p);
+      beta.col(0) = coef_new.tail(p);
       coef0 = coef_new.head(k);
       loglik_new = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
 
@@ -2033,7 +2033,7 @@ public:
       {
         step = step / 2;
         coef_new = coef + step * desend_direction;
-        beta.row(0) = coef_new.tail(p);
+        beta.col(0) = coef_new.tail(p);
         coef0 = coef_new.head(k);
         loglik_new = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
       }
@@ -2049,8 +2049,8 @@ public:
       loglik = loglik_new;
     }
     
-    for(int i =0; i<beta.rows(); i++){
-      beta.row(i) = coef.tail(p).eval();
+    for(int i =0; i<beta.cols(); i++){
+      beta.col(i) = coef.tail(p).eval();
     }
     coef0 = coef.head(k);
     return true;
@@ -2061,16 +2061,14 @@ public:
     int n = X.rows();
     int p = X.cols();
     int k = coef0.size();
-
     for(int i=1; i<k; i++){
       if(coef0(i) <= coef0(i-1)){
-        std::cout << "coef0 isn't increasing." << std::endl;//test
         break;
       }
     }
 
-    Eigen::VectorXd xbeta = X * beta.row(0);
-    double loss = this->lambda_level * beta.row(0).cwiseAbs2().sum();
+    Eigen::VectorXd xbeta = X * beta.col(0);
+    double loss = this->lambda_level * beta.col(0).cwiseAbs2().sum();
 
     double pro=0;
     for(int i=0; i<n; i++){
@@ -2102,7 +2100,6 @@ public:
     //Eigen::VectorXd EY = expect_y(XA, beta_A, coef0);
     //Eigen::VectorXd W = EY.array().square() * weights.array(); // X^TWX is hessian
     //Eigen::VectorXd d = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * beta; // negative gradient direction of loss
-    
     int n = X.rows();
     int p = X.cols();
     int k = coef0.size();
@@ -2116,8 +2113,7 @@ public:
     Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
     Eigen::MatrixXd C(n,k), B(k,k), B2(k,k); // C,B is a temporary variable
 
-    
-    xbeta = XA * beta_A.row(0);
+    xbeta = XA * beta_A.col(0);
     // compute logit
     for(int i1=0; i1<n; i1++){
       for(int i2=0; i2<k; i2++){
@@ -2162,8 +2158,7 @@ public:
 
     // compute negtive gradient direction
     C = D.cwiseProduct(dL);
-    d = C.rowwise().sum().cwiseProduct(weights) * X - 2*this->lambda_level*beta.row(0);
-
+    d = C.rowwise().sum().cwiseProduct(weights) * X - 2*this->lambda_level*beta.col(0);
     // compute diag of Hessian
     for(int i=0; i<n; i++){
       B = D.row(i).asDiagonal();
@@ -2175,7 +2170,6 @@ public:
       B = B.transpose() * B2 * B;
       W(i) = weights(i)*B.sum();       
     }
-
     Eigen::VectorXd betabar = Eigen::VectorXd::Zero(p);
     Eigen::VectorXd dbar = Eigen::VectorXd::Zero(p);
     // we only need N diagonal sub-matriX of hessian of Loss, X^T %*% diag(EY^2) %*% X is OK, but waste.
@@ -2192,7 +2186,7 @@ public:
       Eigen::MatrixXd phiG;
       hessianG.sqrt().evalTo(phiG);
       Eigen::MatrixXd invphiG = phiG.ldlt().solve(Eigen::MatrixXd::Identity(g_size(i), g_size(i))); // this is a way to inverse a matriX.
-      betabar.segment(g_indeX(i), g_size(i)) = phiG * beta.row(0).segment(g_indeX(i), g_size(i));
+      betabar.segment(g_indeX(i), g_size(i)) = phiG * beta.col(0).segment(g_indeX(i), g_size(i));
       dbar.segment(g_indeX(i), g_size(i)) = invphiG * d.segment(g_indeX(i), g_size(i));
     }
     int A_size = A.size();
@@ -2228,7 +2222,7 @@ public:
     Eigen::MatrixXd C(n,k), B(k,k), B2(k,k); // C,B is a temporary variable
 
     
-    xbeta = XA * beta_A.row(0);
+    xbeta = XA * beta_A.col(0);
     // compute logit
     for(int i1=0; i1<n; i1++){
       for(int i2=0; i2<k; i2++){
