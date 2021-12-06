@@ -3,6 +3,8 @@
 
 #include "Algorithm.h"
 #include "model_fit.h"
+#include <iostream>
+#include "stdio.h"
 using namespace std;
 
 template <class T4>
@@ -1909,26 +1911,25 @@ public:
 
   bool primary_model_fit(T4 &X, Eigen::MatrixXd &y, Eigen::VectorXd &weights, Eigen::MatrixXd &beta, Eigen::VectorXd &coef0, double loss0, Eigen::VectorXi &A, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size)
   {
+    static int num_ = 0;//test
+    int id = ++num_;
+
     int n = X.rows();
     int p = X.cols();
-    int k = coef0.size();
+    int k = coef0.size() - 1;
+    
+    printf("%d--%d;%d;%d;%d;%d;%d;%d;%d\n",id,X.rows(),X.cols(),y.rows(),y.cols(),weights.size(),beta.rows(),beta.cols(),coef0.size());
     //cout << X.rows() << ";" << X.cols() << ";" << y.rows() << ";" << y.cols() << ";" << weights.size() << ";" << beta.rows() << ";" << beta.cols() << ";" << coef0.size() << endl;
-  
+    
     //make sure that coef0 is increasing
     for(int i=1; i<k; i++){
       if(coef0(i) <= coef0(i-1)){
-        for(int j=0; j<k; j++){
-          coef0(j) = j;
-        }
-        break;
+        coef0(i) = coef0(i-1) + 1;
       }
     }
-    // expand beta
-    Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
-    coef.head(k) = coef0;
-    coef.tail(p) = beta.col(0);
 
     double step = 1;
+    double loglik_new, loglik;
     Eigen::VectorXd g(p + k);
     Eigen::VectorXd coef_new;
     Eigen::VectorXd h_diag = Eigen::VectorXd::Zero(k+p);
@@ -1940,8 +1941,11 @@ public:
     Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
     Eigen::VectorXd desend_direction; // coef_new = coef + step * desend_direction
     Eigen::MatrixXd C(n,k), B(k,k),B2(k,k); // C,B is a temporary variable
-
-    double loglik_new = DBL_MAX, loglik = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
+    Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
+    coef.head(k) = coef0.head(k);
+    coef.tail(p) = beta.col(0);
+    loglik = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
+    printf("%d-0: loss = %f\n",id,-loglik);
 
     for (int j = 0; j < this->primary_model_fit_max_iter; j++){
       xbeta = X * coef.tail(p);
@@ -1966,22 +1970,23 @@ public:
         }
       }
       // compute dL
+      dL = Eigen::MatrixXd::Zero(n, k);
       for(int i1=0; i1<n; i1++){ 
         for(int i2=0; i2<k+1; i2++){
-          if(y(i1,i2)!=0){
-            if(i2==k){
-              dL.row(i1) = Eigen::VectorXd::Constant(k,-1.0/P(i1,k));
-            }
-            else{
-              dL(i1,i2) = 1.0 / P(i1,i2);
-            }
-            break;
-          }            
+          if(y(i1,i2)==0)
+            continue;
+          if(i2==k){
+            dL.row(i1) = Eigen::VectorXd::Constant(k,-1.0/P(i1,k));
+          }
+          else{
+            dL(i1,i2) = 1.0 / P(i1,i2);
+          }
+          break;             
         }                
       }
       C.rightCols(k-1) = dL.leftCols(k-1);
       C.col(0) = Eigen::VectorXd::Zero(n);
-      dL -= C;
+      dL = dL - C;
       // compute D
       for(int i1=0; i1<n; i1++){
         D.row(i1) = logit.row(i1).array().square() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array().square();
@@ -1989,9 +1994,9 @@ public:
 
       // compute negtive gradient direction
       C = D.cwiseProduct(dL);
-      g.head(k) = weights * C;
-      g.tail(p) = C.rowwise().sum().cwiseProduct(weights) * X - 2*this->lambda_level*coef.tail(p);
-
+      g.head(k) = weights.transpose() * C;
+      g.tail(p) = X.transpose() * C.rowwise().sum().cwiseProduct(weights) - 2*this->lambda_level*coef.tail(p);
+      
       // compute inverse of diag of Hessian
       for(int i=0; i<n; i++){
         B = D.row(i).asDiagonal();
@@ -2021,24 +2026,54 @@ public:
         else
           h_diag(i) = 1.0 / h_diag(i);
       }
-
+      step = 1; 
       desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
+      printf("%d--%d: step = %f, coef0 = %f, %f\n",id,j,step,coef_new(0),coef_new(1));
+      while (step > this->primary_model_fit_epsilon){
+        int i = 1;
+        for(; i<k; i++){
+          if(coef_new(i) <= coef_new(i-1)){
+            step = step / 2;
+            coef_new = coef + step * desend_direction;
+            break;
+          }
+        }
+        if(i==k){
+          break;
+        }
+      }
       beta.col(0) = coef_new.tail(p);
-      coef0 = coef_new.head(k);
+      coef0.head(k) = coef_new.head(k);
       loglik_new = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
-
+      printf("%d--%d: step = %f, coef0 = %f, %f\n",id,j,step,coef_new(0),coef_new(1));
       while (loglik_new < loglik && step > this->primary_model_fit_epsilon)
       {
         step = step / 2;
         coef_new = coef + step * desend_direction;
+        while (step > this->primary_model_fit_epsilon){
+          int i = 1;
+          for(; i<k; i++){
+            if(coef_new(i) <= coef_new(i-1)){
+              step = step / 2;
+              coef_new = coef + step * desend_direction;
+              break;
+            }
+          }
+          if(i==k){
+            break;
+          }
+        }
         beta.col(0) = coef_new.tail(p);
-        coef0 = coef_new.head(k);
+        coef0.head(k) = coef_new.head(k);
         loglik_new = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
       }
 
       bool condition1 = step < this->primary_model_fit_epsilon;
       bool condition2 = -(loglik_new + (this->primary_model_fit_max_iter - j - 1) * (loglik_new - loglik)) + this->tau > loss0;
+
+      printf("%d--%d: g = %f, d_d = %f, step = %f, loss = %f, is.stop = %d\n",id,j,g.cwiseAbs2().sum(),desend_direction.cwiseAbs2().sum(),step,-loglik_new,condition2);
+
       if (condition1 || condition2)
       {
         break;
@@ -2051,7 +2086,7 @@ public:
     for(int i =0; i<beta.cols(); i++){
       beta.col(i) = coef.tail(p).eval();
     }
-    coef0 = coef.head(k);
+    coef0.head(k) = coef.head(k);
     return true;
   }
 
@@ -2059,12 +2094,7 @@ public:
   {
     int n = X.rows();
     int p = X.cols();
-    int k = coef0.size();
-    for(int i=1; i<k; i++){
-      if(coef0(i) <= coef0(i-1)){
-        break;
-      }
-    }
+    int k = coef0.size() - 1;
 
     Eigen::VectorXd xbeta = X * beta.col(0);
     double loss = this->lambda_level * beta.col(0).cwiseAbs2().sum();
@@ -2081,12 +2111,20 @@ public:
           }
           else{
             pro = 1.0/(1+exp(-xbeta(i)-coef0(j))) - 1.0/(1+exp(-xbeta(i)-coef0(j-1)));
-            if( pro < 1e-10 )
-              pro = 1e-10;
+            if( pro < 1e-20 )
+              pro = 1e-20;
             loss -= log(pro);
           }          
           break;
         }  
+      }
+    }
+    
+    for(int i=1; i<k; i++){
+      if(coef0(i) <= coef0(i-1)){
+        cout << "warning: intercept isn't parallel!" << " loss is " << loss << endl;//test
+        cout << "coef0 are " << coef0 << endl;
+        break;
       }
     }
 
@@ -2101,7 +2139,7 @@ public:
     //Eigen::VectorXd d = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * beta; // negative gradient direction of loss
     int n = X.rows();
     int p = X.cols();
-    int k = coef0.size();
+    int k = coef0.size() - 1;
 
     Eigen::VectorXd xbeta;
     Eigen::MatrixXd logit(n,k);
@@ -2134,6 +2172,7 @@ public:
       }
     }
     // compute dL
+    dL = Eigen::MatrixXd::Zero(n, k);
     for(int i1=0; i1<n; i1++){ 
       for(int i2=0; i2<k+1; i2++){
         if(y(i1,i2)!=0){
@@ -2210,7 +2249,7 @@ public:
 
     int n = X.rows();
     int p = X.cols();
-    int k = coef0.size();
+    int k = coef0.size() - 1;
 
 
     Eigen::VectorXd xbeta;
