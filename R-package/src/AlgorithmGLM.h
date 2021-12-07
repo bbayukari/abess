@@ -2029,6 +2029,9 @@ public:
       step = 1; 
       desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
+      if(id==28&&j==1){
+        cout << h_diag << endl;
+      }
       printf("%d--%d: step = %f, coef0 = %f, %f\n",id,j,step,coef_new(0),coef_new(1));
       while (step > this->primary_model_fit_epsilon){
         int i = 1;
