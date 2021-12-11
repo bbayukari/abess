@@ -1943,7 +1943,7 @@ public:
     Eigen::MatrixXd C(n,k), B(k,k),B2(k,k); // C,B is a temporary variable
     Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
     coef.head(k) = coef0.head(k);
-    coef.tail(p) = beta.col(0);
+    coef.tail(p) = beta.col(0);    
     loglik = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
     printf("%d-0: loss = %f\n",id,-loglik);
 
@@ -1966,7 +1966,9 @@ public:
           }
           else{
             P(i1,i2) = logit(i1,i2) - logit(i1,i2-1);
-          } 
+          }
+          if(P(i1,i2) < 1e-10)
+            P(i1,i2) = 1e-10; 
         }
       }
       // compute dL
@@ -2026,13 +2028,23 @@ public:
         else
           h_diag(i) = 1.0 / h_diag(i);
       }
+      /*if(id==1&&j==1){
+        cout << "logit:" << endl << logit << endl;
+        cout << "P:" << endl << P << endl;
+        cout << "dL:" << endl << dL << endl;
+        cout << "D:" << endl << D << endl;
+        cout << "h_diag:" << endl << h_diag << endl;
+      }*/
+      
       step = 1; 
+      //desend_direction = g;
       desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
-      if(id==28&&j==1){
-        cout << h_diag << endl;
+      printf("%d--%d: step = %f, coef0 = ",id,j,step);
+      for(int i1=0;i1<k;i1++){
+        printf("%f,", coef_new(i1));
       }
-      printf("%d--%d: step = %f, coef0 = %f, %f\n",id,j,step,coef_new(0),coef_new(1));
+      printf("\n");
       while (step > this->primary_model_fit_epsilon){
         int i = 1;
         for(; i<k; i++){
@@ -2049,7 +2061,11 @@ public:
       beta.col(0) = coef_new.tail(p);
       coef0.head(k) = coef_new.head(k);
       loglik_new = -neg_loglik_loss(X, y, weights, beta, coef0, A, g_indeX, g_size);
-      printf("%d--%d: step = %f, coef0 = %f, %f\n",id,j,step,coef_new(0),coef_new(1));
+      printf("%d--%d: step = %f, coef0 = ",id,j,step);
+      for(int i1=0;i1<k;i1++){
+        printf("%f,", coef_new(i1));
+      }
+      printf("\n");
       while (loglik_new < loglik && step > this->primary_model_fit_epsilon)
       {
         step = step / 2;
@@ -2075,7 +2091,7 @@ public:
       bool condition1 = step < this->primary_model_fit_epsilon;
       bool condition2 = -(loglik_new + (this->primary_model_fit_max_iter - j - 1) * (loglik_new - loglik)) + this->tau > loss0;
 
-      printf("%d--%d: g = %f, d_d = %f, step = %f, loss = %f, is.stop = %d\n",id,j,g.cwiseAbs2().sum(),desend_direction.cwiseAbs2().sum(),step,-loglik_new,condition2);
+      printf("%d--%d: g = %f, d_d = %f, step = %.10f, loss = %f, is.stopForStep = %d\n",id,j,g.cwiseAbs2().sum(),desend_direction.cwiseAbs2().sum(),step,-loglik_new,condition1);
 
       if (condition1 || condition2)
       {

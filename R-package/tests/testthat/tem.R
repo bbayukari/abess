@@ -3,11 +3,11 @@ library(testthat)
 #library(ordinalNet)
 test_that("abess (ordinal) works", {
   
-  n <- 1000
-  p <- 10
-  support.size <- 3
+  n <- 10000
+  p <- 5
+  support.size <- 2
   dataset <- generate.data(n, p, support.size,
-                           family = "ordinal",class.num = 3, seed = 12)
+                           family = "ordinal",class.num = 4, seed = 12)
   true_beta_idx <- which(dataset[["beta"]]!=0)
   
   abess_fit <- abess(
@@ -16,7 +16,7 @@ test_that("abess (ordinal) works", {
     family = "ordinal",
     tune.type = "cv", 
     support.size = support.size,
-    #always.include = true_beta_idx,
+    always.include = true_beta_idx,
     num.threads = 1,
     newton.thresh = 1e-10,
     max.newton.iter = 200
