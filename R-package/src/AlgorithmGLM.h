@@ -1940,7 +1940,7 @@ public:
     Eigen::MatrixXd D = Eigen::MatrixXd::Zero(n, k);
     Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
     Eigen::VectorXd desend_direction; // coef_new = coef + step * desend_direction
-    Eigen::MatrixXd C(n,k), B(k,k),B2(k,k); // C,B is a temporary variable
+    Eigen::MatrixXd grad_L(n, k);
     Eigen::VectorXd coef = Eigen::VectorXd::Zero(p + k);
     coef.head(k) = coef0.head(k);
     coef.tail(p) = beta.col(0);    
@@ -1971,6 +1971,7 @@ public:
             P(i1,i2) = 1e-10; 
         }
       }
+/*
       // compute dL
       dL = Eigen::MatrixXd::Zero(n, k);
       for(int i1=0; i1<n; i1++){ 
@@ -1993,14 +1994,14 @@ public:
       for(int i1=0; i1<n; i1++){
         D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
       }
-/*
+
       // compute negtive gradient direction
       C = D.cwiseProduct(dL);
       g.head(k) = weights.transpose() * C;
       g.tail(p) = X.transpose() * C.rowwise().sum().cwiseProduct(weights) - 2 * this->lambda_level * coef.tail(p);
 */
       // compute gradient
-      Eigen::MatrixXd grad_L(n, k);
+      
       for (int i1 = 0; i1 < n; i1++)
       {
         for (int i2 = 0; i2 < k; i2++)
@@ -2009,7 +2010,7 @@ public:
         }
       }
       g.head(k) = grad_L.colwise().sum();
-      g.tail(p) = grad_L.rowwise().sum().transpose() * X;
+      g.tail(p) = grad_L.rowwise().sum().transpose() * X  - 2 * this->lambda_level * coef.tail(p);
 
       for (int i2 = 0; i2 < k; i2++){
         for(int i1=0;i1<n;i1++){
@@ -2022,15 +2023,17 @@ public:
         else
           h_diag(i2) = 1.0 / h_diag(i2);
       }
-      Eigen::VectorXd HL(n);
+
       for(int i=0;i<n;i++){
         for(int i1=0;i1<k;i1++){
-          HL += (1.0/P(i1,i2)+1.0/P(i1,i2+1)) * logit(i1,i2)* logit(i1,i2) * (1.0 - logit(i1,i2)) * (1.0 - logit(i1,i2));
+          W(i) += (1.0/P(i,i1)+1.0/P(i,i1+1)) * logit(i,i1)* logit(i,i1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1));
+        }
+        for(int i1=0;i1<k-1;i1++){
+          W(i) -= 1.0/P(i,i1+1) * logit(i,i1) * logit(i,i1+1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1+1));
         }
       }
 
-
-      for (int i2 = 0; i2 < p; i2++){
+      for (int i = 0; i < p; i++){
         h_diag(i+k) = X.col(i).cwiseProduct(W).dot(X.col(i)) + 2 * this->lambda_level; 
         if (h_diag(i+k) < 1e-7 && h_diag(i+k) >= 0)
           h_diag(i+k) = 1e7;
@@ -2076,15 +2079,13 @@ public:
 //      if(id==1&&j==1){
 //        cout << "logit:" << endl << logit << endl;
 //       cout << "P:" << endl << P << endl;
-//        cout << "dL:" << endl << dL << endl;
-//        cout << "D:" << endl << D << endl;
 //        cout << "h_diag:" << endl << h_diag << endl;
 //      }
       
      
       step = 1; 
-      desend_direction = g;
-      //desend_direction = g.cwiseProduct(h_diag);
+      //desend_direction = g;
+      desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
       printf("%d--%d: step = %f, coef0 = ",id,j,step);
       for(int i1=0;i1<k;i1++){
@@ -2213,7 +2214,7 @@ public:
     Eigen::VectorXd d(p);
     Eigen::MatrixXd D = Eigen::MatrixXd::Zero(n, k);
     Eigen::MatrixXd dL = Eigen::MatrixXd::Zero(n, k);
-    Eigen::MatrixXd C(n,k), B(k,k), B2(k,k); // C,B is a temporary variable
+    Eigen::MatrixXd grad_L(n, k);
 
     xbeta = XA * beta_A.col(0);
     // compute logit
@@ -2236,6 +2237,25 @@ public:
         }   
       }
     }
+
+    for (int i1 = 0; i1 < n; i1++)
+    {
+      for (int i2 = 0; i2 < k; i2++)
+      {
+        grad_L(i1, i2) = (y(i1, i2) / P(i1, i2) - y(i1, i2 + 1) / P(i1, i2 + 1)) * logit(i1, i2) * (1.0 - logit(i1, i2));
+      }
+    }
+    d = grad_L.rowwise().sum().transpose() * X  - 2 * this->lambda_level * beta.col(0);
+
+    for(int i=0;i<n;i++){
+      for(int i1=0;i1<k;i1++){
+        W(i) += (1.0/P(i,i1)+1.0/P(i,i1+1)) * logit(i,i1)* logit(i,i1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1));
+      }
+      for(int i1=0;i1<k-1;i1++){
+        W(i) -= 1.0/P(i,i1+1) * logit(i,i1) * logit(i,i1+1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1+1));
+      }
+    }
+    /*
     // compute dL
     dL = Eigen::MatrixXd::Zero(n, k);
     for(int i1=0; i1<n; i1++){ 
@@ -2273,6 +2293,7 @@ public:
       B = B.transpose() * B2 * B;
       W(i) = weights(i)*B.sum();       
     }
+    */
     Eigen::VectorXd betabar = Eigen::VectorXd::Zero(p);
     Eigen::VectorXd dbar = Eigen::VectorXd::Zero(p);
     // we only need N diagonal sub-matriX of hessian of Loss, X^T %*% diag(EY^2) %*% X is OK, but waste.
@@ -2346,6 +2367,7 @@ public:
         } 
       }
     }
+    /*
     // compute D
     for(int i1=0; i1<n; i1++){
       D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
@@ -2362,7 +2384,15 @@ public:
       B = B.transpose() * B2 * B;
       W(i) = weights(i)*B.sum();       
     }
-    
+    */
+    for(int i=0;i<n;i++){
+      for(int i1=0;i1<k;i1++){
+        W(i) += (1.0/P(i,i1)+1.0/P(i,i1+1)) * logit(i,i1)* logit(i,i1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1));
+      }
+      for(int i1=0;i1<k-1;i1++){
+        W(i) -= 1.0/P(i,i1+1) * logit(i,i1) * logit(i,i1+1) * (1.0 - logit(i,i1)) * (1.0 - logit(i,i1+1));
+      }
+    }
 
     T4 XA_new = XA;
     for (int j = 0; j < XA.cols(); j++)
