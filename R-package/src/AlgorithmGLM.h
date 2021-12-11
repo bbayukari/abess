@@ -1991,7 +1991,7 @@ public:
       dL = dL - C;
       // compute D
       for(int i1=0; i1<n; i1++){
-        D.row(i1) = logit.row(i1).array().square() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array().square();
+        D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
       }
 
       // compute negtive gradient direction
@@ -2210,7 +2210,7 @@ public:
     dL -= C;
     // compute D
     for(int i1=0; i1<n; i1++){
-      D.row(i1) = logit.row(i1).array().square() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array().square();
+      D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
     }
 
     // compute negtive gradient direction
@@ -2302,7 +2302,7 @@ public:
     }
     // compute D
     for(int i1=0; i1<n; i1++){
-      D.row(i1) = logit.row(i1).array().square() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array().square();
+      D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
     }
 
     // compute diag of Hessian
