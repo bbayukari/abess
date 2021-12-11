@@ -1993,12 +1993,54 @@ public:
       for(int i1=0; i1<n; i1++){
         D.row(i1) = logit.row(i1).array() * (Eigen::VectorXd::Ones(k)-logit.row(i1)).array();
       }
-
+/*
       // compute negtive gradient direction
       C = D.cwiseProduct(dL);
       g.head(k) = weights.transpose() * C;
-      g.tail(p) = X.transpose() * C.rowwise().sum().cwiseProduct(weights) - 2*this->lambda_level*coef.tail(p);
-      
+      g.tail(p) = X.transpose() * C.rowwise().sum().cwiseProduct(weights) - 2 * this->lambda_level * coef.tail(p);
+*/
+      // compute gradient
+      Eigen::MatrixXd grad_L(n, k);
+      for (int i1 = 0; i1 < n; i1++)
+      {
+        for (int i2 = 0; i2 < k; i2++)
+        {
+          grad_L(i1, i2) = (y(i1, i2) / P(i1, i2) - y(i1, i2 + 1) / P(i1, i2 + 1)) * logit(i1, i2) * (1.0 - logit(i1, i2));
+        }
+      }
+      g.head(k) = grad_L.colwise().sum();
+      g.tail(p) = grad_L.rowwise().sum().transpose() * X;
+
+      for (int i2 = 0; i2 < k; i2++){
+        for(int i1=0;i1<n;i1++){
+          h_diag(i2) += (1.0/P(i1,i2)+1.0/P(i1,i2+1)) * logit(i1,i2)* logit(i1,i2) * (1.0 - logit(i1,i2)) * (1.0 - logit(i1,i2));
+        }
+        if (h_diag(i2) < 1e-7 && h_diag(i2) >= 0)
+          h_diag(i2) = 1e7;
+        else if(h_diag(i2) > -1e-7 && h_diag(i2) < 0)
+          h_diag(i2) = -1e7;
+        else
+          h_diag(i2) = 1.0 / h_diag(i2);
+      }
+      Eigen::VectorXd HL(n);
+      for(int i=0;i<n;i++){
+        for(int i1=0;i1<k;i1++){
+          HL += (1.0/P(i1,i2)+1.0/P(i1,i2+1)) * logit(i1,i2)* logit(i1,i2) * (1.0 - logit(i1,i2)) * (1.0 - logit(i1,i2));
+        }
+      }
+
+
+      for (int i2 = 0; i2 < p; i2++){
+        h_diag(i+k) = X.col(i).cwiseProduct(W).dot(X.col(i)) + 2 * this->lambda_level; 
+        if (h_diag(i+k) < 1e-7 && h_diag(i+k) >= 0)
+          h_diag(i+k) = 1e7;
+        else if(h_diag(i+k) > -1e-7 && h_diag(i+k) < 0)
+          h_diag(i+k) = -1e7;
+        else
+          h_diag(i+k) = 1.0 / h_diag(i+k);
+      }
+
+/*
       // compute inverse of diag of Hessian
       for(int i=0; i<n; i++){
         B = D.row(i).asDiagonal();
@@ -2028,17 +2070,21 @@ public:
         else
           h_diag(i) = 1.0 / h_diag(i);
       }
-      /*if(id==1&&j==1){
-        cout << "logit:" << endl << logit << endl;
-        cout << "P:" << endl << P << endl;
-        cout << "dL:" << endl << dL << endl;
-        cout << "D:" << endl << D << endl;
-        cout << "h_diag:" << endl << h_diag << endl;
-      }*/
+*/
+ 
+
+//      if(id==1&&j==1){
+//        cout << "logit:" << endl << logit << endl;
+//       cout << "P:" << endl << P << endl;
+//        cout << "dL:" << endl << dL << endl;
+//        cout << "D:" << endl << D << endl;
+//        cout << "h_diag:" << endl << h_diag << endl;
+//      }
       
+     
       step = 1; 
-      //desend_direction = g;
-      desend_direction = g.cwiseProduct(h_diag);
+      desend_direction = g;
+      //desend_direction = g.cwiseProduct(h_diag);
       coef_new = coef + step * desend_direction; // ApproXimate Newton method
       printf("%d--%d: step = %f, coef0 = ",id,j,step);
       for(int i1=0;i1<k;i1++){
