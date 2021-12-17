@@ -71,8 +71,11 @@ Before writing the documentation, it would be better to ensure the usage of the 
 There are four basic steps to write documentation for the R function in abess:
 
 1. Add comments to R files in `R-package/R` directory.
+   
 2. Run `devtools::document()` in R to convert roxygen comments to `.Rd` files.
+   
 3. Preview documentation with `?`.
+   
 4. Repeat steps 1-3 until you are satisfied with the documentation.
 
 More advanced topics for writing object documentation are available at: https://r-pkgs.org/man.html.
@@ -80,10 +83,15 @@ More advanced topics for writing object documentation are available at: https://
 #### Online vignette 
 
 A online vignette is a long-form guide to some essential functions in the `abess` package. We recommend to use a vignette to: 
+  
 - describes the problem that one function can solve; 
+  
 - show the reader how to solve with the function;
+  
 - give more details about the potential advanced usage.
-We strongly recommend to use R markdown to organize a online vignette. You can learn many detail about R markdown in Hadley's website: https://r-pkgs.org/vignettes.html.
+
+A typical online vignette example is present in this [[link]](https://abess-team.github.io/abess/articles/v03-classification.html).
+We strongly recommend to use R markdown (`.Rmd` files) to organize a online vignette. You can learn many detail about R markdown in Hadley's website: https://r-pkgs.org/vignettes.html.
 
 ### Python document
 
@@ -113,7 +121,7 @@ If you are a experienced programmer, you might want to help new features develop
 
     It is preferred to work on your own branch instead of the master one;
 
-5. While developing code, make sure to read the abess style guide (**TODO**) which will make sure that your new code and documentation matches the existing style. This makes the review process much smoother. For more details about code developing, read the [Code Developing](CodeDeveloping.md) description for abess library;
+5. While developing code, make sure to read the abess style guide (PEP8 for Python, tidyverse for R) which will make sure that your new code and documentation matches the existing style. This makes the review process much smoother. For more details about code developing, read the [Code Developing](CodeDeveloping.md) description for abess library;
 
 6. After finishing the development and making sure it works well, you can push them onto your repository:
 
