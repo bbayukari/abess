@@ -1894,7 +1894,9 @@ public:
       Eigen::VectorXd desend_direction; // coef_new = coef + step * desend_direction
       Eigen::VectorXd EY = expect_y(X, coef);
       Eigen::VectorXd W = EY.array().square() * weights.array();
-      double loglik_new = DBL_MAX, loglik = -this->loss_function(x,y,weights,coef.tail(p),coef(0),A,g_index,g_size,this->lambda_level);
+      coef0 = coef(0);
+      beta = coef.tail(p);
+      double loglik_new = DBL_MAX, loglik = -this->loss_function(x,y,weights,beta,coef0,A,g_index,g_size,this->lambda_level);
 
       for (int j = 0; j < this->primary_model_fit_max_iter; j++)
       {
@@ -1913,13 +1915,17 @@ public:
         g = X.transpose() * (EY - y).cwiseProduct(weights) - 2 * this->lambda_level * coef; // negtive gradient direction
         desend_direction = g.cwiseProduct(h_diag);
         coef_new = coef + step * desend_direction; // Approximate Newton method
-        loglik_new = -this->loss_function(x,y,weights,coef.tail(p),coef(0),A,g_index,g_size,this->lambda_level);
+        coef0 = coef_new(0);
+        beta = coef_new.tail(p);
+        loglik_new = -this->loss_function(x,y,weights,beta,coef0,A,g_index,g_size,this->lambda_level);
 
         while (loglik_new < loglik && step > this->primary_model_fit_epsilon)
         {
           step = step / 2;
           coef_new = coef + step * desend_direction;
-          loglik_new = -this->loss_function(x,y,weights,coef.tail(p),coef(0),A,g_index,g_size,this->lambda_level);
+          coef0 = coef_new(0);
+          beta = coef_new.tail(p);
+          loglik_new = -this->loss_function(x,y,weights,beta,coef0,A,g_index,g_size,this->lambda_level);
         }
 
         bool condition1 = step < this->primary_model_fit_epsilon;
@@ -1945,7 +1951,9 @@ public:
       Eigen::VectorXd EY_square = EY.array().square();
       Eigen::VectorXd W = EY_square.cwiseProduct(weights); // the weight matriX of IW(eight)LS method
       Eigen::VectorXd Z = X * coef - (y - EY).cwiseQuotient(EY_square);
-      double loglik_new = DBL_MAX, loglik = -this->loss_function(x,y,weights,coef.tail(p),coef(0),A,g_index,g_size,this->lambda_level);
+      coef0 = coef(0);
+      beta = coef.tail(p);
+      double loglik_new = DBL_MAX, loglik = -this->loss_function(x,y,weights,beta,coef0,A,g_index,g_size,this->lambda_level);
 
       for (int j = 0; j < this->primary_model_fit_max_iter; j++)
       {
@@ -1956,8 +1964,9 @@ public:
         }
         Eigen::MatrixXd XTX = 2 * this->lambda_level * lambdamat + X_new.transpose() * X;
         coef = XTX.ldlt().solve(X_new.transpose() * Z);
-
-        loglik_new = -this->loss_function(x,y,weights,coef.tail(p),coef(0),A,g_index,g_size,this->lambda_level);
+        coef0 = coef(0);
+        beta = coef.tail(p);
+        loglik_new = -this->loss_function(x,y,weights,beta,coef0,A,g_index,g_size,this->lambda_level);
         bool condition1 = -(loglik_new + (this->primary_model_fit_max_iter - j - 1) * (loglik_new - loglik)) + this->tau > loss0;
         bool condition2 = abs(loglik - loglik_new) / (0.1 + abs(loglik_new)) < this->primary_model_fit_epsilon;
         // TODO maybe here should be abs(loglik - loglik_new)
