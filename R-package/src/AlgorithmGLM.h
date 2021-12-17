@@ -2005,7 +2005,7 @@ public:
         Xbeta(i) = this->threshold;
       }
     }
-    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) / X.rows() + lambda * beta.cwiseAbs2().sum();
+    return (Xbeta.cwiseProduct(y) - Xbeta.array().log().matrix()).dot(weights) + lambda * beta.cwiseAbs2().sum();
   }
 
   void sacrifice(T4 &X, T4 &XA, Eigen::VectorXd &y, Eigen::VectorXd &beta, Eigen::VectorXd &beta_A, double &coef0, Eigen::VectorXi &A, Eigen::VectorXi &I, Eigen::VectorXd &weights, Eigen::VectorXi &g_indeX, Eigen::VectorXi &g_size, int N, Eigen::VectorXi &A_ind, Eigen::VectorXd &bd, Eigen::VectorXi &U, Eigen::VectorXi &U_ind, int num)
