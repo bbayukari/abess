@@ -69,6 +69,11 @@ using namespace Rcpp;
  * input, instead of X.
  * @param normalize_type                Type of normalization on X before fitting the algorithm. If normalize_type=0,
  * normalization will not be used.
+ * normalize_type
+ *       0 
+ *       1 -xm,-ym,/xn
+ *       2 -xm,/xn
+ *       3 /xn
  * @param algorithm_type                Algorithm type.
  * @param model_type                    Model type.
  * @param max_iter                      Maximum number of iterations taken for the splicing algorithm to converge.
@@ -96,7 +101,9 @@ using namespace Rcpp;
  * @param screening_size                Screen the variables first and use the chosen variables in abess process.
  *                                      The number of variables remaining after screening. It should be an integer
  * smaller than p. If screen_size = -1, screening will not be used.
- * @param g_index                       The group index for each variable.
+ * @param g_index                       The group index for each variable. 
+ * For example, if group is (1,2,2,3,3,4,4,4), then g_index will be (0,1,3,5), g_num = 4, g_size = (1,2,2,3).
+ *                                      
  * @param always_select                 An array contains the indexes of variables we want to consider in the model.
  * @param primary_model_fit_max_iter    The maximal number of iteration in `primary_model_fit()` (in Algorithm.h).
  * @param primary_model_fit_epsilon     The epsilon (threshold) of iteration in `primary_model_fit()` (in Algorithm.h).
