@@ -71,7 +71,7 @@ class Parameters {
     Eigen::VectorXd lambda_list;
     int s_min = 0;
     int s_max = 0;
-    Eigen::Matrix<single_parameter, -1, 1> sequence;
+    Eigen::Matrix<single_parameter, -1, 1> sequence; // const int Dynamic = -1; 
 
     Parameters() {}
     Parameters(Eigen::VectorXi &support_size_list, Eigen::VectorXd &lambda_list, int s_min, int s_max) {
@@ -128,7 +128,7 @@ Eigen::VectorXi find_ind(Eigen::VectorXi &L, Eigen::VectorXi &index, Eigen::Vect
 
 template <class T4>
 T4 X_seg(T4 &X, int n, Eigen::VectorXi &ind, int model_type) {
-    if (ind.size() == X.cols() || model_type == 10 || model_type == 7) {
+    if (ind.size() == X.cols() || model_type == 10 || model_type == 7) { // pca and rpca
         return X;
     } else {
         T4 X_new(n, ind.size());

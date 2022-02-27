@@ -251,7 +251,7 @@ Eigen::VectorXi min_k(Eigen::VectorXd &vec, int k, bool sort_by_value) {
 
     return ind.head(k).eval();
 }
-
+// return the index of top-k element of vec. If(!sort_by_value), it well be sorted by index. 
 Eigen::VectorXi max_k(Eigen::VectorXd &vec, int k, bool sort_by_value) {
     Eigen::VectorXi ind = Eigen::VectorXi::LinSpaced(vec.size(), 0, vec.size() - 1);  // [0 1 2 3 ... N-1]
     auto rule = [vec](int i, int j) -> bool { return vec(i) > vec(j); };              // sort rule

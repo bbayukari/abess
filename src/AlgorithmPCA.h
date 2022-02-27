@@ -94,7 +94,7 @@ class abessPCA : public Algorithm<Eigen::VectorXd, Eigen::VectorXd, double, T4> 
             bd(I(i)) = temp.squaredNorm();
         }
     };
-
+    // Matrix blocking
     MatrixXd SigmaA(Eigen::MatrixXd &Sigma, Eigen::VectorXi &A, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size) {
         int len = 0;
         for (int i = 0; i < A.size(); i++) {

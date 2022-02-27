@@ -189,7 +189,7 @@ class Algorithm {
     Eigen::VectorXd get_bd() { return this->bd; }
 
     virtual int get_beta_size(int n, int p) { return p; }
-
+    // N is g_num.
     void fit(T4 &train_x, T1 &train_y, Eigen::VectorXd &train_weight, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size,
              int train_n, int p, int N) {
         int T0 = this->sparsity_level;
