@@ -103,8 +103,10 @@
   type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"predictor"</span>, <span class="st">"gram"</span><span class="op">)</span>,
   sparse.type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fpc"</span>, <span class="st">"kpc"</span><span class="op">)</span>,
   cor <span class="op">=</span> <span class="cn">FALSE</span>,
-  support.size <span class="op">=</span> <span class="cn">NULL</span>,
   kpc.num <span class="op">=</span> <span class="cn">NULL</span>,
+  support.size <span class="op">=</span> <span class="cn">NULL</span>,
+  gs.range <span class="op">=</span> <span class="cn">NULL</span>,
+  tune.path <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sequence"</span>, <span class="st">"gsection"</span><span class="op">)</span>,
   tune.type <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"gic"</span>, <span class="st">"aic"</span>, <span class="st">"bic"</span>, <span class="st">"ebic"</span>, <span class="st">"cv"</span><span class="op">)</span>,
   nfolds <span class="op">=</span> <span class="fl">5</span>,
   foldid <span class="op">=</span> <span class="cn">NULL</span>,
@@ -112,6 +114,7 @@
   c.max <span class="op">=</span> <span class="cn">NULL</span>,
   always.include <span class="op">=</span> <span class="cn">NULL</span>,
   group.index <span class="op">=</span> <span class="cn">NULL</span>,
+  screening.num <span class="op">=</span> <span class="cn">NULL</span>,
   splicing.type <span class="op">=</span> <span class="fl">1</span>,
   max.splicing.iter <span class="op">=</span> <span class="fl">20</span>,
   warm.start <span class="op">=</span> <span class="cn">TRUE</span>,
@@ -140,14 +143,24 @@ If <code>kpc.num</code> is supplied, the default is <code>sparse.type = "kpc"</c
 otherwise, the covariance matrix.
 This option is available only if <code>type = "predictor"</code>.
 Default: <code>cor = FALSE</code>.</p></dd>
+<dt>kpc.num</dt>
+<dd><p>A integer decide the number of principal components to be sequentially considered.</p></dd>
 <dt>support.size</dt>
 <dd><p>It is a flexible input. If it is an integer vector.
 It represents the support sizes to be considered for each principal component.
 If it is a <code>list</code> object containing <code>kpc.num</code> number of integer vectors,
 the i-th principal component consider the support size specified in the i-th element in the <code>list</code>.
 The default is <code>support.size = NULL</code>, and some rules in details section are used to specify <code>support.size</code>.</p></dd>
-<dt>kpc.num</dt>
-<dd><p>A integer decide the number of principal components to be sequentially considered.</p></dd>
+<dt>gs.range</dt>
+<dd><p>A integer vector with two elements.
+The first element is the minimum model size considered by golden-section,
+the later one is the maximum one. Default is <code>gs.range = c(1, min(n, round(n/(log(log(n))log(p)))))</code>.
+Not available now.</p></dd>
+<dt>tune.path</dt>
+<dd><p>The method to be used to select the optimal support size. For
+<code>tune.path = "sequence"</code>, we solve the best subset selection problem for each size in <code>support.size</code>.
+For <code>tune.path = "gsection"</code>, we solve the best subset selection problem with support size ranged in <code>gs.range</code>,
+where the specific support size to be considered is determined by golden section.</p></dd>
 <dt>tune.type</dt>
 <dd><p>The type of criterion for choosing the support size.
 Available options are <code>"gic"</code>, <code>"ebic"</code>, <code>"bic"</code>, <code>"aic"</code> and <code>"cv"</code>.
@@ -172,6 +185,9 @@ and their corresponding index in <code>group.index</code> should be the same.
 Denote the first group as <code>1</code>, the second <code>2</code>, etc.
 If you do not fit a model with a group structure,
 please set <code>group.index = NULL</code> (the default).</p></dd>
+<dt>screening.num</dt>
+<dd><p>An integer number. Preserve <code>screening.num</code> number of predictors with the largest
+marginal maximum likelihood estimator before running algorithm.</p></dd>
 <dt>splicing.type</dt>
 <dd><p>Optional type for splicing.
 If <code>splicing.type = 1</code>, the number of variables to be spliced is
@@ -322,10 +338,10 @@ because the meaning of these parameters are very similar.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> abesspca(x = rob_cov, type = "gram")</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   PC support.size       ev       pev</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1            1 6592.468 0.9589947</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1            2 6635.833 0.9653029</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3  1            3 6674.936 0.9709912</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4  1            4 6686.392 0.9726576</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1  1            1 6450.949 0.9573173</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2  1            2 6504.400 0.9652494</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3  1            3 6553.977 0.9726067</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4  1            4 6564.217 0.9741262</span>
 <span class="r-in"></span>
 <span class="r-in"><span class="co">## K-component principal component analysis</span></span>
 <span class="r-in"><span class="va">pca_fit</span> <span class="op">&lt;-</span> <span class="fu">abesspca</span><span class="op">(</span><span class="va">USArrests</span>,</span>
