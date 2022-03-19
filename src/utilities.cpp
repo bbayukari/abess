@@ -188,7 +188,6 @@ Eigen::VectorXi max_k(Eigen::VectorXd &vec, int k, bool sort_by_value) {
 // }
 
 // Ac Complementary set of Active set
-Eigen::VectorXi Ac(Eigen::VectorXi &A, int N) {
 // complement
 Eigen::VectorXi complement(Eigen::VectorXi &A, int N) {
     int A_size = A.size();
