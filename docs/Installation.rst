@@ -7,20 +7,19 @@ Stable release
 Python
 ~~~~~~
 
-To install abess on Python, you can simply get the stable version with:
+To install ``abess`` on Python, you can simply get the stable version with:
 
 .. code:: bash
 
    $ pip install abess
 
-If you don’t have `pip <https://pip.pypa.io>`__ installed, this `Python
+If you don't have `pip <https://pip.pypa.io>`__ installed, this `Python
 installation
 guide <http://docs.python-guide.org/en/latest/starting/installation/>`__
-can guide you through the process. Linux and MacOS users also need to
-install `swig <http://www.swig.org/>`__.
+can guide you through the process.
 
 R
-~
+~~~~~~
 
 To install stable version into R environment, run the command:
 
@@ -31,7 +30,7 @@ To install stable version into R environment, run the command:
 Latest version
 --------------
 
-This page gives instructions on how to build and install abess from the
+This page gives instructions on how to build and install ``abess`` from the
 source code. If the instructions do not help for you, please feel free
 to ask questions by opening an
 `issue <https://github.com/abess-team/abess/issues>`__.
@@ -52,19 +51,22 @@ langulage you prefer.
 Python
 ~~~~~~
 
-Before installing abess itself, some dependencies should be installed
-first: ``swig``, ``bash``, ``mingw``, which may be a little different in
+Before installing abess itself, some dependent libraries should be installed
+first, which may be a little different in
 different platforms:
 
--  **Linux**: ``$ sudo apt install swig bash mingw-w64`` (for Ubuntu,
+-  **Linux**: ``$ sudo apt install bash`` (for Ubuntu,
    but other Linux systems are similar);
--  **Windows**: ``$ choco install swig mingw git`` (using
+-  **Windows**: ``$ choco install git`` (using
    `Chocolatey <https://community.chocolatey.org/packages>`__), or
    manually install the software and add them into PATH;
--  **MacOS**: ``$ brew install swig mingw-w64 bash`` (using
+   Windows user will also need to download `Microsoft C++ Build Tools <https://visualstudio.microsoft.com/visual-cpp-build-tools/>`__,
+   and then install the "Desktop development with C++" module inside.
+-  **MacOS**: ``$ brew install bash`` (using
    `Homebrew <https://brew.sh/>`__).
 
-After that, you can manually install abess by conducting command:
+Then, you need to install ``pybind11`` via ``pip install pybind11`` (or `other methods <https://pybind11.readthedocs.io/en/stable/installing.html#>`__). 
+After that, we can manually install ``abess`` by conducting command:
 
 .. code:: bash
 
@@ -73,6 +75,14 @@ After that, you can manually install abess by conducting command:
 
 If it finishes with ``Finished processing dependencies for abess``, the
 installation is successful.
+
+Alternatively, if you would like to develop ``abess``, install ``abess`` in `editable mode <https://peps.python.org/pep-0660/>` 
+(it is very convenient for development): 
+
+.. code:: bash
+
+   $ cd ./python
+   $ pip install -e .
 
 .. _r-1:
 
@@ -151,6 +161,7 @@ are required for abess. Actually, they can be found on
 ``abess/python/setup.py`` and automatically installed during the
 installation.
 
+-  `pybind11 <https://pybind11.readthedocs.io/en/stable/>`__: seamless operability between C++11 and Python
 -  `numpy <https://pypi.org/project/numpy/>`__: the fundamental package
    for array computing with Python.
 -  `scipy <https://pypi.org/project/scipy/>`__: work with NumPy arrays,
@@ -165,17 +176,18 @@ packages should be installed:
    testing with Python.
    
    - `lifelines <https://pypi.org/project/lifelines/>`__: support testing 
-   for survival analysis.
+     for survival analysis.
+
 -  `Sphinx <https://pypi.org/project/Sphinx/>`__: develop the Python
    documentation.
 
-   -  `nbsphinx <https://pypi.org/project/nbsphinx/>`__: support jupyter
-      notebook for Sphinx.
-   -  `myst-parser <https://pypi.org/project/myst-parser/>`__: support
-      markdown for Sphinx.
    -  `sphinx-rtd-theme <https://pypi.org/project/sphinx-rtd-theme/>`__:
       “Read the Docs” theme for Sphinx.
--  `sphinix-gallery <https://pypi.org/project/sphinx-gallery/>`__: develop the gallery of Python examples.
+   -  `sphinix-gallery <https://pypi.org/project/sphinx-gallery/>`__: develop the gallery of Python examples.
+
+-  `pandas <https://pypi.org/project/pandas/>`__: 
+   support data manipulation in Tutorials and Testing.
+      
 
 .. _r-2:
 
@@ -200,6 +212,6 @@ to additionally install:
 -  `knitr <https://cran.r-project.org/web/packages/knitr/index.html>`__
    and
    `rmarkdown <https://cran.r-project.org/web/packages/rmarkdown/index.html>`__:
-   write tutorials.
+   write tutorials for R package.
 -  `pkgdown <https://cran.r-project.org/web/packages/pkgdown/index.html>`__:
    build website for the ``abess`` R package.

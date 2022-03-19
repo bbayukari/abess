@@ -25,6 +25,7 @@
 #' It represents the support sizes to be considered for each principal component.
 #' If it is a \code{list} object containing \code{kpc.num} number of integer vectors,
 #' the i-th principal component consider the support size specified in the i-th element in the \code{list}.
+#' Only used for \code{tune.path = "sequence"}.
 #' The default is \code{support.size = NULL}, and some rules in details section are used to specify \code{support.size}.
 #' @param splicing.type Optional type for splicing.
 #' If \code{splicing.type = 1}, the number of variables to be spliced is
@@ -63,18 +64,19 @@
 #' \item{nvars}{The number of variables.}
 #' \item{sparse.type}{The same as input.}
 #' \item{support.size}{The actual support.size values used. Note that it is not necessary the same as the input if the later have non-integer values or duplicated values.}
-#' \item{ev}{A vector with size \code{length(support.size)}. It records the explained variance at each support size.}
+#' \item{ev}{A vector with size \code{length(support.size)}. It records the cumulative sums of explained variance at each support size.}
 #' \item{tune.value}{A value of tuning criterion of length \code{length(support.size)}.}
 #' \item{kpc.num}{The number of principal component being considered.}
 #' \item{var.pc}{The variance of principal components obtained by performing standard PCA.}
 #' \item{cum.var.pc}{Cumulative sums of \code{var.pc}.}
 #' \item{var.all}{If \code{sparse.type = "fpc"},
 #' it is the total standard deviations of all principal components.}
-#' \item{cum.ev}{Cumulative sums of explained variance.}
 #' \item{pev}{A vector with the same length as \code{ev}. It records the percent of explained variance (compared to \code{var.all}) at each support size.}
 #' \item{pev.pc}{It records the percent of explained variance (compared to \code{var.pc}) at each support size.}
+#' \item{tune.type}{The criterion type for tuning parameters.}
+#' \item{tune.path}{The strategy for tuning parameters.}
 #' \item{call}{The original call to \code{abess}.}
-#' It is worthy to note that, if \code{sparse.type == "kpc"}, the \code{ev}, \code{tune.value}, \code{pev} and \code{pev.pc} in list are \code{list} objects.
+#' It is worthy to note that, if \code{sparse.type == "kpc"}, the \code{coef}, \code{support.size}, \code{ev}, \code{tune.value}, \code{pev} and \code{pev.pc} in list are \code{list} objects.
 #'
 #' @author Jin Zhu, Junxian Zhu, Ruihuang Liu, Junhao Huang, Xueqin Wang
 #' 
@@ -134,8 +136,10 @@ abesspca <- function(x,
                      type = c("predictor", "gram"),
                      sparse.type = c("fpc", "kpc"),
                      cor = FALSE,
-                     support.size = NULL,
                      kpc.num = NULL,
+                     support.size = NULL,
+                     gs.range = NULL,
+                     tune.path = c("sequence", "gsection"),
                      tune.type = c("gic", "aic", "bic", "ebic", "cv"),
                      nfolds = 5,
                      foldid = NULL,
@@ -143,6 +147,7 @@ abesspca <- function(x,
                      c.max = NULL,
                      always.include = NULL,
                      group.index = NULL,
+                     screening.num = NULL, 
                      splicing.type = 1,
                      max.splicing.iter = 20,
                      warm.start = TRUE,
@@ -151,6 +156,7 @@ abesspca <- function(x,
   
   sparse.type <- match.arg(sparse.type)
   tune.type <- match.arg(tune.type)
+  tune.path <- match.arg(tune.path)
   type <- match.arg(type)
 
   data <- list(x=x)
@@ -161,6 +167,8 @@ abesspca <- function(x,
     cor = cor,
     support.size = support.size,
     kpc.num = kpc.num,
+    tune.path = tune.path, 
+    gs.range = gs.range, 
     tune.type = tune.type,
     nfolds = nfolds,
     foldid = foldid,
@@ -170,18 +178,20 @@ abesspca <- function(x,
     group.index = group.index,
     splicing.type = splicing.type,
     max.splicing.iter = max.splicing.iter,
+    screening.num = screening.num,
     warm.start = warm.start,
     num.threads = num.threads,
     support.num = NULL,
     important.search = NULL
   )
 
-  model <- initializate(para,data)
+  model <- initializate(para, data)
   para <- model$para
   data <- model$data
   
   x <- data$x
-
+  tune.path <- para$tune.path
+  gs.range <- para$gs.range
   kpc.num <- para$kpc.num
   warm.start <- para$warm.start
   num_threads  <- para$num_threads 
@@ -197,6 +207,7 @@ abesspca <- function(x,
   important_search <- para$important_search
   always_include <- para$always_include
   s_max <- para$s_max
+  s_min <- para$s_min
   s_list_bool <- para$s_list_bool
   tune_type <- para$tune_type
   ic_type <- para$ic_type
@@ -207,7 +218,10 @@ abesspca <- function(x,
   gram_x <- para$gram_x
   pc_variance <- para$pc_variance
   total_variance  <- para$total_variance 
-
+  screening_num <- para$screening_num
+  screening <- para$screening
+  path_type <- para$path_type
+  
   ## Cpp interface:
   result <- abessPCA_API(
     x = x,
@@ -219,15 +233,15 @@ abesspca <- function(x,
     # algorithm_type = 6,
     max_iter = max_splicing_iter,
     exchange_num = c_max,
-    path_type = 1,
+    path_type = path_type,
     is_warm_start = warm.start,
     ic_type = 1,
     ic_coef = ic_scale,
     Kfold = nfolds,
     sequence = s_list_bool,
-    s_min = 0,
-    s_max = 10,
-    screening_size = -1,
+    s_min = s_min,
+    s_max = s_max,
+    screening_size = ifelse(screening_num >= nvars, -1, screening_num),
     g_index = g_index,
     always_select = always_include,
     early_stop = FALSE,
@@ -239,7 +253,31 @@ abesspca <- function(x,
     pca_num = kpc.num, 
     A_init = as.integer(c())
   )
+  
+  if(tune.path == "gsection"){
+    if(sparse.type == "fpc"){
+      # sort and delete duplicate things in result
+      gs_unique_index <- match(sort(unique(result[["sequence"]])), result[["sequence"]])
 
+      s_list <- result[["sequence"]][gs_unique_index]
+      result[["beta_all"]] <- result[["beta_all"]][gs_unique_index]
+      result[["train_loss_all"]] <- result[["train_loss_all"]][gs_unique_index]
+      result[["ic_all"]] <- result[["ic_all"]][gs_unique_index]
+      result[["test_loss_all"]] <- result[["test_loss_all"]][gs_unique_index]
+    } else{
+      s_list <- list()
+      for(i in seq_len(kpc.num)){
+        # sort and delete duplicate things in result
+        gs_unique_index <- match(sort(unique(result[[i]][["sequence"]])), result[[i]][["sequence"]])
+        s_list[[i]] <- result[[i]][["sequence"]][gs_unique_index]
+        result[[i]][["beta_all"]] <- result[[i]][["beta_all"]][gs_unique_index]
+        result[[i]][["train_loss_all"]] <- result[[i]][["train_loss_all"]][gs_unique_index]
+        result[[i]][["ic_all"]] <- result[[i]][["ic_all"]][gs_unique_index]
+        result[[i]][["test_loss_all"]] <- result[[i]][["test_loss_all"]][gs_unique_index]
+      }
+    }
+    result[["sequence"]] <- NULL
+  }
   # result[["beta"]] <- NULL
   # result[["coef0"]] <- NULL
   # result[["train_loss"]] <- NULL
@@ -247,11 +285,11 @@ abesspca <- function(x,
   # result[["coef0_all"]] <- NULL
   # result[["ic_all"]] <- NULL
   # result[["test_loss_all"]] <- NULL
-
+  
   if (sparse.type == "fpc") {
     names(result)[which(names(result) == "beta_all")] <- "coef"
     # result[["coef"]] <- result[["beta_all"]]
-    result[["ev"]] <- -result[["train_loss_all"]][, 1]
+    result[["ev"]] <- -result[["train_loss_all"]]
     # names(result)[which(names(result) == "train_loss_all")] <- "ev"
     # result[["ev"]] <- - result[["ev"]][, 1]
     result[["coef"]] <- do.call("cbind", result[["coef"]])
@@ -285,7 +323,7 @@ abesspca <- function(x,
         dimnames = list(vn, as.character(s_list[[i]]))
       )
     }
-    ev_list <- list(-result[[1]][["train_loss_all"]][, 1])
+    ev_list <- list(-result[[1]][["train_loss_all"]])
     for (i in 2:kpc.num) {
       ev_vec <- c()
       tmp <- coef_list[[1]]
@@ -297,7 +335,7 @@ abesspca <- function(x,
         j <- j + 1
       }
       tmp2 <- coef_list[[j]]
-      for (k in 1:ncol(tmp2)) {
+      for (k in seq_len(ncol(tmp2))) {
         ev_vec <- c(ev_vec, sum(adjusted_variance_explained(gram_x, cbind(tmp, tmp2[, k]))))
       }
       ev_list[[i]] <- ev_vec
@@ -335,7 +373,10 @@ abesspca <- function(x,
   result[["sparse.type"]] <- sparse.type
   result[["support.size"]] <- s_list
   result[["tune.type"]] <- tune_type
-
+  result[["tune.path"]] <- tune.path
+  if(tune.path == "gsection"){
+    result[["gs.range"]] <- c(s_min,s_max)
+  }
   result[["call"]] <- match.call()
   class(result) <- "abesspca"
   result

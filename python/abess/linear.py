@@ -3,6 +3,8 @@ import numpy as np
 from .metrics import concordance_index_censored
 from .bess_base import bess_base
 from .utilities import (new_data_check, categorical_to_dummy)
+from .functions import (BreslowEstimator)
+# from .nonparametric import _compute_counts
 
 
 def fix_docs(cls):
@@ -90,6 +92,7 @@ class LogisticRegression(bess_base):
             splicing_type=splicing_type,
             important_search=important_search
         )
+        self._baseline_model = BreslowEstimator()
 
     def predict_proba(self, X):
         r"""
@@ -279,10 +282,10 @@ class LinearRegression(bess_base):
 
 
 @ fix_docs
-class CoxPHSurvivalAnalysis(bess_base):
+class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
     r"""
-    Adaptive Best-Subset Selection(ABESS) algorithm for
-    COX proportional hazards model.
+    Adaptive Best-Subset Selection (ABESS) algorithm for
+    Cox proportional hazards model.
 
     Parameters
     ----------
@@ -355,6 +358,7 @@ class CoxPHSurvivalAnalysis(bess_base):
             splicing_type=splicing_type,
             important_search=important_search
         )
+        self._baseline_model = BreslowEstimator()
 
     def predict(self, X):
         r"""
@@ -397,6 +401,31 @@ class CoxPHSurvivalAnalysis(bess_base):
         result = concordance_index_censored(
             np.array(y[:, 1], np.bool_), y[:, 0], risk_score)
         return result[0]
+
+    def predict_survival_function(self, X):
+        r"""
+        Predict survival function.
+        The survival function for an individual
+        with feature vector :math:`x` is defined as
+
+        .. math::
+            S(t \\mid x) = S_0(t)^{\\exp(x^\\top \\beta)} ,
+
+        where :math:`S_0(t)` is the baseline survival function,
+        estimated by Breslow's estimator.
+
+        Parameters
+        ----------
+        X : array-like, shape = (n_samples, n_features)
+            Data matrix.
+
+        Returns
+        -------
+        survival : ndarray of :class:`StepFunction`, shape = (n_samples,)
+            Predicted survival functions.
+        """
+        return self._baseline_model.get_survival_function(
+            np.log(self.predict(X)))
 
 
 @ fix_docs
@@ -714,7 +743,7 @@ class MultinomialRegression(bess_base):
                  always_select=None,
                  primary_model_fit_max_iter=10,
                  primary_model_fit_epsilon=1e-8,
-                 approximate_Newton=False,
+                 #  approximate_Newton=False,
                  thread=1,
                  sparse_matrix=False,
                  splicing_type=0,
@@ -730,7 +759,7 @@ class MultinomialRegression(bess_base):
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
-            approximate_Newton=approximate_Newton,
+            approximate_Newton=True,
             thread=thread,
             sparse_matrix=sparse_matrix,
             splicing_type=splicing_type,
@@ -939,6 +968,156 @@ class GammaRegression(bess_base):
         return 1 - dev / dev_null
 
 
+@ fix_docs
+class OrdinalRegression(bess_base):
+    r"""
+    Adaptive Best-Subset Selection(ABESS) algorithm for
+    ordinal regression problem.
+
+    Parameters
+    ----------
+    splicing_type: {0, 1}, optional, default=0
+        The type of splicing:
+        "0" for decreasing by half, "1" for decresing by one.
+    important_search : int, optional, default=128
+        The size of inactive set during updating active set when splicing.
+        It should be a non-positive integer and if important_search=0,
+        it would be set as the size of whole inactive set.
+
+    Examples
+    --------
+    >>> ### Sparsity known
+    >>>
+    >>> from abess.linear import OrdinalRegression
+    >>> from abess.datasets import make_glm_data
+    >>> import numpy as np
+    >>> np.random.seed(12345)
+    >>> data = make_glm_data(n = 1000, p = 50, k = 10, family = 'ordinal')
+    >>> print((np.nonzero(data.coef_)[0]))
+    [ 0  4 10 14 26 29 34 38 47 48]
+    >>> model = OrdinalRegression(support_size = 10)
+    >>> model.fit(data.x, data.y)
+    classes: [0. 1. 2.]
+    OrdinalRegression(support_size=10)
+    >>> print((np.nonzero(model.coef_)[0]))
+    [ 0  4 10 14 26 29 38 40 47 48]
+
+    >>> ### Sparsity unknown
+    >>>
+    >>> # path_type="seq"
+    >>> model = OrdinalRegression(path_type = "seq")
+    >>> model.fit(data.x, data.y)
+    classes: [0. 1. 2.]
+    OrdinalRegression()
+    >>> print((np.nonzero(model.coef_)[0]))
+    [ 0  4  8 10 14 26 29 38 40 47 48]
+    >>>
+    >>> # path_type="gs"
+    >>> model = OrdinalRegression(path_type="gs")
+    >>> model.fit(data.x, data.y)
+    classes: [0. 1. 2.]
+    OrdinalRegression(path_type='gs')
+    >>> print((np.nonzero(model.coef_)[0]))
+    [ 0  4 10 14 26 29 38 47 48]
+    """
+
+    def __init__(self, max_iter=20, exchange_num=5, path_type="seq",
+                 is_warm_start=True, support_size=None,
+                 alpha=None, s_min=None, s_max=None,
+                 ic_type="ebic", ic_coef=1.0, cv=1,
+                 screening_size=-1,
+                 always_select=None,
+                 primary_model_fit_max_iter=10,
+                 primary_model_fit_epsilon=1e-8,
+                 approximate_Newton=False,
+                 thread=1,
+                 sparse_matrix=False,
+                 splicing_type=0,
+                 important_search=128
+                 ):
+        super().__init__(
+            algorithm_type="abess", model_type="Ordinal", normalize_type=2,
+            path_type=path_type, max_iter=max_iter, exchange_num=exchange_num,
+            is_warm_start=is_warm_start, support_size=support_size,
+            alpha=alpha, s_min=s_min, s_max=s_max,
+            ic_type=ic_type, ic_coef=ic_coef, cv=cv,
+            screening_size=screening_size,
+            always_select=always_select,
+            primary_model_fit_max_iter=primary_model_fit_max_iter,
+            primary_model_fit_epsilon=primary_model_fit_epsilon,
+            approximate_Newton=approximate_Newton,
+            thread=thread,
+            sparse_matrix=sparse_matrix,
+            splicing_type=splicing_type,
+            important_search=important_search
+        )
+
+    def predict_proba(self, X):
+        r"""
+        Give the probabilities of new sample
+        being assigned to different classes.
+
+        Parameters
+        ----------
+        X : array-like, shape(n_samples, p_features)
+            Sample matrix to be predicted.
+
+        Returns
+        -------
+        proba : array-like, shape(n_samples, M_classes)
+            Returns the probabilities for each class
+            on given X.
+        """
+        X = new_data_check(self, X)
+        M = len(self.intercept_)
+        cdf = (X @ self.coef_)[:, np.newaxis] + self.intercept_
+        cdf = 1 / (1 + np.exp(-cdf))
+        proba = np.zeros_like(cdf)
+        proba[:, 0] = cdf[:, 0]
+        proba[:, 1:(M - 1)] = cdf[:, 1:(M - 1)] - cdf[:, 0:(M - 2)]
+        proba[:, M - 1] = 1 - cdf[:, M - 1]
+        return proba
+
+    def predict(self, X):
+        r"""
+        Return the most possible class label (start from 0) for given data.
+
+        Parameters
+        ----------
+        X : array-like, shape(n_samples, p_features)
+            Sample matrix to be predicted.
+
+        Returns
+        -------
+        y : array-like, shape(n_samples,)
+            Predict class labels for samples in X.
+        """
+        proba = self.predict_proba(X)
+        return np.argmax(proba, axis=1)
+
+    # def score(self, X, y):
+    #     """
+    #     Give new data, and it returns the entropy function.
+
+    #     Parameters
+    #     ----------
+    #     X : array-like, shape(n_samples, p_features)
+    #         Test data.
+    #     y : array-like, shape(n_samples, M_responses)
+    #         Test response (dummy variables of real class).
+
+    #     Returns
+    #     -------
+    #     score : float
+    #         entropy function
+    #     """
+    #     X, y = new_data_check(self, X, y)
+    #     if len(y.shape) == 1:
+    #         y = categorical_to_dummy(y)
+
+    #     return ???
+
+
 class abessLogistic(LogisticRegression):
     warning_msg = ("Class ``abessLogistic`` has been renamed to "
                    "``LogisticRegression``. "
@@ -1121,7 +1300,7 @@ class abessMultinomial(MultinomialRegression):
                  ic_type="ebic", ic_coef=1.0, cv=1, screening_size=-1,
                  always_select=None,
                  primary_model_fit_max_iter=10, primary_model_fit_epsilon=1e-8,
-                 approximate_Newton=False,
+                 # approximate_Newton=False,
                  thread=1,
                  sparse_matrix=False,
                  splicing_type=0,
@@ -1137,7 +1316,7 @@ class abessMultinomial(MultinomialRegression):
             always_select=always_select,
             primary_model_fit_max_iter=primary_model_fit_max_iter,
             primary_model_fit_epsilon=primary_model_fit_epsilon,
-            approximate_Newton=approximate_Newton,
+            # approximate_Newton=approximate_Newton,
             thread=thread,
             sparse_matrix=sparse_matrix,
             splicing_type=splicing_type,

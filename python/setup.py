@@ -1,10 +1,9 @@
 import os
 import sys
 import platform
-from setuptools import setup, find_packages, Extension, dist
-
-dist.Distribution().fetch_build_eggs(['numpy'])
-import numpy
+import distutils
+from setuptools import setup, find_packages
+from pybind11.setup_helpers import Pybind11Extension
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -26,63 +25,48 @@ def get_info():
 
 package_info = get_info()
 
-# copy src
-os.system('bash "{}/copy_src.sh" "{}"'.format(CURRENT_DIR, CURRENT_DIR))
+# copy files from parent dir
+NEED_CLEAN_TREE = set()
+try:
+    target_dir = CURRENT_DIR
+    src_dir = os.path.join(CURRENT_DIR, os.path.pardir)
+    
+    dst = os.path.join(target_dir, 'src')
+    src = os.path.join(src_dir, 'src')
+    distutils.dir_util.copy_tree(src, dst)
+    NEED_CLEAN_TREE.add(os.path.abspath(dst))
+
+    dst = os.path.join(target_dir, 'include')
+    src = os.path.join(src_dir, 'include')
+    distutils.dir_util.copy_tree(src, dst)
+    NEED_CLEAN_TREE.add(os.path.abspath(dst))
+except:
+    pass
+
+# print("sys.platform output: {}".format(sys.platform))
+# print("platform.processor() output: {}".format(platform.processor()))
 
 if sys.platform.startswith('win32'):
-    os_type = 'MS_WIN64'
-    python_path = sys.base_prefix
-    temp = python_path.split("\\")
-    version = str(sys.version_info.major) + str(sys.version_info.minor)
-    path1 = "-I" + python_path + "\\include"
-    path2 = "-L" + python_path + "\\libs"
-    os.system('bash "{}/pre.sh" '.format(CURRENT_DIR) +
-              python_path + ' ' + version)
+    # os_type = 'MS_WIN64'
 
-    ## compiler options:
-    extra_compile_args=[
-        "-DNDEBUG", "-fopenmp",
-        "-O2", "-Wall",
-        "-Wno-int-in-bool-context"
-    ]
-    ## uncomment mingw64_unable_extra_compile_args if the error:
-    ## "Error: invalid register for .seh_savexmm"
-    mingw64_unable_extra_compile_args=[
-        "-mavx", "-mfma",
-        "-march=native"
-    ]
-    extra_compile_args2=[
-        "-std=c++11",
-        "-mtune=generic",
-        "-D%s" % os_type,
-        path1, path2
-    ]
-    extra_compile_args.extend(mingw64_unable_extra_compile_args)
-    extra_compile_args.extend(extra_compile_args2)
-
-    ## C extension:
-    cabess_module = Extension(
-        name='abess._cabess',
+    pybind_cabess_module = Pybind11Extension(
+        name='pybind_cabess',
         sources=[
-            CURRENT_DIR + '/src/api.cpp',
-            CURRENT_DIR + '/src/List.cpp',
-            CURRENT_DIR + '/src/utilities.cpp',
-            CURRENT_DIR + '/src/normalize.cpp',
-            CURRENT_DIR + '/src/pywrap.cpp',
-            CURRENT_DIR + '/src/pywrap.i'],
-        language='c++',
-        extra_compile_args=extra_compile_args,
-        extra_link_args=['-lgomp'],
-        libraries=["vcruntime140"],
-        include_dirs=[
-            numpy.get_include(),
-            CURRENT_DIR + '/include'
+            'src/api.cpp',
+            'src/List.cpp',
+            'src/utilities.cpp',
+            'src/normalize.cpp',
+            'src/pywrap.cpp'],
+        extra_compile_args=[
+            "/openmp",
+            "/O2", "/W4",
+            "/arch:AVX2"
         ],
-        swig_opts=["-c++"]
+        include_dirs=[
+            'include'
+        ]
     )
 elif sys.platform.startswith('darwin'):
-    eigen_path = CURRENT_DIR + "/include"
-
     # compatible compile args with M1 chip:
     extra_compile_args = [
         "-DNDEBUG", "-O2",
@@ -90,42 +74,37 @@ elif sys.platform.startswith('darwin'):
         "-Wno-int-in-bool-context"
     ]
     m1chip_unable_extra_compile_args = [
-        "-mavx", "-mfma",
-        "-march=native"
+        # Enable the "-mavx", "-mfma", "-march=native" would improve the computational efficiency.
+        # "-mavx" and "-mfma" do not supported by github-action environment when arch = x86_64
+        # "-mavx",
+        # "-mfma"
+        # "-mavx" and "-mfma" do not supported by github-action when building arm64 (because it the default is not arm64)
+        # "-march=native"
     ]
-    if platform.processor() != 'arm':
+    if platform.processor() not in ('arm', 'arm64'):
         extra_compile_args.extend(m1chip_unable_extra_compile_args)
         pass
 
-    cabess_module = Extension(
-        name='abess._cabess',
-        sources=[CURRENT_DIR + '/src/api.cpp',
-                 CURRENT_DIR + '/src/List.cpp',
-                 CURRENT_DIR + '/src/utilities.cpp',
-                 CURRENT_DIR + '/src/normalize.cpp',
-                 CURRENT_DIR + '/src/pywrap.cpp',
-                 CURRENT_DIR + '/src/pywrap.i'],
-        language='c++',
+    pybind_cabess_module = Pybind11Extension(
+        name='pybind_cabess',
+        sources=['src/api.cpp',
+                 'src/List.cpp',
+                 'src/utilities.cpp',
+                 'src/normalize.cpp',
+                 'src/pywrap.cpp'],
         extra_compile_args=extra_compile_args,
         include_dirs=[
-            numpy.get_include(),
-            eigen_path
-        ],
-        swig_opts=["-c++"]
+            'include'
+        ]
     )
 else:
-    eigen_path = CURRENT_DIR + "/include"
-    # print(eigen_path)
-    # eigen_path = "/usr/local/include/eigen3/Eigen"
-    cabess_module = Extension(
-        name='abess._cabess',
-        sources=[CURRENT_DIR + '/src/api.cpp',
-                 CURRENT_DIR + '/src/List.cpp',
-                 CURRENT_DIR + '/src/utilities.cpp',
-                 CURRENT_DIR + '/src/normalize.cpp',
-                 CURRENT_DIR + '/src/pywrap.cpp',
-                 CURRENT_DIR + '/src/pywrap.i'],
-        language='c++',
+    pybind_cabess_module = Pybind11Extension(
+        name='pybind_cabess',
+        sources=['src/api.cpp',
+                 'src/List.cpp',
+                 'src/utilities.cpp',
+                 'src/normalize.cpp',
+                 'src/pywrap.cpp'],
         extra_compile_args=[
             "-DNDEBUG", "-fopenmp",
             "-O2", "-Wall",
@@ -137,10 +116,8 @@ else:
         ],
         extra_link_args=['-lgomp'],
         include_dirs=[
-            numpy.get_include(),
-            eigen_path
-        ],
-        swig_opts=["-c++"]
+            'include'
+        ]
     )
     pass
 
@@ -152,8 +129,8 @@ setup(
     version=package_info['__version__'],
     author=package_info['__author__'],
     author_email="zhuj37@mail2.sysu.edu.cn",
-    maintainer="Kangkang Jiang",
-    maintainer_email="jiangkk3@mail2.sysu.edu.cn",
+    maintainer="Junhao Huang",
+    maintainer_email="huangjh256@mail2.sysu.edu.cn",
     # package_dir={'': CURRENT_DIR},
     packages=find_packages(),
     description="abess: Fast Best Subset Selection",
@@ -173,6 +150,17 @@ setup(
         "Source Code": "https://github.com/abess-team/abess",
     },
     classifiers=[
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Developers",
+        "Programming Language :: C++",
+        "Programming Language :: Python",
+        "Topic :: Software Development",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: MacOS",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
@@ -181,5 +169,5 @@ setup(
         "Programming Language :: Python :: 3.9",
     ],
     python_requires='>=3.5',
-    ext_modules=[cabess_module]
+    ext_modules=[pybind_cabess_module]
 )

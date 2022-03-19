@@ -21,8 +21,8 @@ abess <- function(x, ...) UseMethod("abess")
 #' by the \code{survival} package (recommended) or
 #' a two-column matrix with columns named \code{"time"} and \code{"status"}.
 #' For \code{family = "mgaussian"}, \code{y} should be a matrix of quantitative responses.
-#' For \code{family = "multinomial"}, \code{y} should be a factor of at least three levels.
-#' Note that, for either \code{"binomial"} or \code{"multinomial"},
+#' For \code{family = "multinomial"} or \code{"ordinal"}, \code{y} should be a factor of at least three levels.
+#' Note that, for either \code{"binomial"}, \code{"ordinal"} or \code{"multinomial"},
 #' if y is presented as a numerical vector, it will be coerced into a factor.
 #' @param family One of the following models:
 #' \code{"gaussian"} (continuous response),
@@ -31,6 +31,7 @@ abess <- function(x, ...) UseMethod("abess")
 #' \code{"cox"} (left-censored response),
 #' \code{"mgaussian"} (multivariate continuous response),
 #' \code{"multinomial"} (multi-class response),
+#' \code{"ordinal"} (multi-class ordinal response),
 #' \code{"gamma"} (positive continuous response).
 #' Depending on the response. Any unambiguous substring can be given.
 #' @param tune.path The method to be used to select the optimal support size. For
@@ -45,7 +46,6 @@ abess <- function(x, ...) UseMethod("abess")
 #' @param gs.range A integer vector with two elements.
 #' The first element is the minimum model size considered by golden-section,
 #' the later one is the maximum one. Default is \code{gs.range = c(1, min(n, round(n/(log(log(n))log(p)))))}.
-#' Not available now.
 #' @param lambda A single lambda value for regularized best subset selection. Default is 0.
 #' @param always.include An integer vector containing the indexes of variables that should always be included in the model.
 #' @param group.index A vector of integers indicating the which group each variable is in.
@@ -67,13 +67,15 @@ abess <- function(x, ...) UseMethod("abess")
 #' important variables to be splicing.
 #' When \code{important.search} \eqn{\ll} \code{p} variables,
 #' it would greatly reduce runtimes. Default: \code{important.search = 128}.
-#' @param normalize Options for normalization. \code{normalize = 0} for no normalization.
-#' \code{normalize = 1} for subtracting the mean of columns of \code{x}.
-#' \code{normalize = 2} for scaling the columns of \code{x} to have \eqn{\sqrt n} norm.
-#' \code{normalize = 3} for subtracting the means of the columns of \code{x} and \code{y}, and also
+#' @param normalize Options for normalization. 
+#' \code{normalize = 0} for no normalization.
+#' \code{normalize = 1} for subtracting the means of the columns of \code{x} and \code{y}, and also
 #' normalizing the columns of \code{x} to have \eqn{\sqrt n} norm.
-#' If \code{normalize = NULL}, \code{normalize} will be set \code{1} for \code{"gaussian"},
-#' \code{2} for \code{"binomial"}. Default is \code{normalize = NULL}.
+#' \code{normalize = 2} for subtracting the mean of columns of \code{x} and 
+#' scaling the columns of \code{x} to have \eqn{\sqrt n} norm.
+#' \code{normalize = 3} for scaling the columns of \code{x} to have \eqn{\sqrt n} norm.
+#' If \code{normalize = NULL}, \code{normalize} will be set \code{1} for \code{"gaussian"} and \code{"mgaussian"},
+#' \code{3} for \code{"cox"}. Default is \code{normalize = NULL}.
 #' @param c.max an integer splicing size. Default is: \code{c.max = 2}.
 #' @param weight Observation weights. When \code{weight = NULL},
 #' we set \code{weight = 1} for each observation as default.
@@ -252,6 +254,17 @@ abess <- function(x, ...) UseMethod("abess")
 #'   support.size = c(3, 4), type = "response"
 #' )
 #'
+#' ################ Ordinal regression  ################
+#' dataset <- generate.data(n, p, support.size, family = "ordinal", class.num = 4)
+#' abess_fit <- abess(dataset[["x"]], dataset[["y"]],
+#'   family = "ordinal", tune.type = "cv"
+#' )
+#' coef <- coef(abess_fit, support.size = abess_fit[["best.size"]])[[1]]
+#' predict(abess_fit,
+#'   newx = dataset[["x"]][1:10, ],
+#'   support.size = c(3, 4), type = "response"
+#' )
+#'
 #' ########## Best group subset selection #############
 #' dataset <- generate.data(n, p, support.size)
 #' group_index <- rep(1:10, each = 2)
@@ -398,7 +411,6 @@ abess.default <- function(x,
   multi_y <- para$multi_y
   early_stop <- para$early_stop
   
-  t1 <- proc.time()
   result <- abessGLM_API(
     x = x,
     y = y,
@@ -437,22 +449,8 @@ abess.default <- function(x,
     cv_fold_id = cv_fold_id, 
     A_init = as.integer(init.active.set)
   )
-  t2 <- proc.time()
-  # print(t2 - t1)
 
   ## process result
-
-  ### process best model (abandon):
-  # support.index <- which(result[["beta"]] != 0.0)
-  # names(result[["beta"]]) <- vn
-  # best_model <- list("beta" = result[["beta"]],
-  #                    "coef0" = result[["coef0"]],
-  #                    "support.index" = support.index,
-  #                    "support.size" = sum(result[["beta"]] != 0.0),
-  #                    "dev" = result[["train_loss"]],
-  #                    "tune.value" = result[["ic"]])
-  # result[["best.model"]] <- best_model
-
   result[["beta"]] <- NULL
   result[["coef0"]] <- NULL
   result[["train_loss"]] <- NULL
@@ -463,7 +461,6 @@ abess.default <- function(x,
   result[["nvars"]] <- nvars
   result[["family"]] <- family
   result[["tune.path"]] <- tune.path
-  # result[["support.df"]] <- g_df
   result[["tune.type"]] <- ifelse(is_cv == TRUE, "cv",
     c("AIC", "BIC", "GIC", "EBIC")[ic_type]
   )
@@ -472,7 +469,7 @@ abess.default <- function(x,
   ## preprocessing result in "gsection"
   if (tune.path == "gsection") {
     ## change the order:
-    reserve_order <- length(result[["sequence"]]):1
+    reserve_order <- rev(seq_len(length(result[["sequence"]])))
     result[["beta_all"]] <- result[["beta_all"]][reserve_order]
     if (is.matrix(result[["coef0_all"]])) {
       result[["coef0_all"]] <- result[["coef0_all"]][reserve_order, , drop = FALSE]
@@ -512,10 +509,11 @@ abess.default <- function(x,
   }
   result[["tune.value"]] <- result[["tune.value"]][, 1]
 
+  ############ restore intercept ############
   result[["best.size"]] <- s_list[which.min(result[["tune.value"]])]
   names(result)[which(names(result) == "coef0_all")] <- "intercept"
   if (family %in% MULTIVARIATE_RESPONSE) {
-    if (family %in% c("multinomial","ordinal")) {
+    if (family %in% c("multinomial", "ordinal")) {
       result[["intercept"]] <- lapply(result[["intercept"]], function(x) {
         x <- x[-y_dim]
       })
@@ -524,13 +522,11 @@ abess.default <- function(x,
     result[["intercept"]] <- as.vector(result[["intercept"]])
   }
 
+  ############ restore intercept ############
   names(result)[which(names(result) == "beta_all")] <- "beta"
-  # names(result)[which(names(result) == 'screening_A')] <- "screening.index"
-  # result[["screening.index"]] <- result[["screening.index"]] + 1
-
   if (multi_y) {
     if (screening) {
-      for (i in 1:length(result[["beta"]])) {
+      for (i in seq_len(length(result[["beta"]]))) {
         beta_all <- matrix(0, nrow = nvars, ncol = y_dim)
         beta_all[result[["screening_A"]] + 1, ] <- result[["beta"]][[i]]
         result[["beta"]][[i]] <- beta_all
@@ -541,7 +537,7 @@ abess.default <- function(x,
       result[["beta"]] <- lapply(result[["beta"]], Matrix::Matrix,
         sparse = TRUE, dimnames = list(vn, y_vn)
       )
-    } else {
+    } else if (family %in% c("multinomial", "ordinal")) {
       result[["beta"]] <- lapply(result[["beta"]], function(x) {
         Matrix::Matrix(x[, -y_dim], sparse = TRUE, dimnames = list(vn, y_vn[-1]))
       })
@@ -564,25 +560,6 @@ abess.default <- function(x,
 
   result[["screening.vars"]] <- vn[result[["screening_A"]] + 1]
   result[["screening_A"]] <- NULL
-
-  # if (s_list[0] == 0) {
-  #   nulldev <- result[["dev"]][1]
-  # } else {
-  #   f <- switch(
-  #     family,
-  #     "gaussian" = gaussian(),
-  #     "binomial" = binomial(),
-  #     "poisson" = poisson()
-  #   )
-  #   if (family != "cox") {
-  #     nulldev <- deviance(glm(y ~ .,
-  #                             data = cbind.data.frame(y, 1),
-  #                             family = f))
-  #   } else {
-  #     nulldev <- 0
-  #   }
-  # }
-  # result[["nulldev"]] <- 0
 
   result[["call"]] <- match.call()
   class(result) <- "abess"
