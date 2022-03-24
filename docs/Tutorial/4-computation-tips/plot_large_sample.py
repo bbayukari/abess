@@ -1,9 +1,17 @@
 """
 Large-Sample Data
 =================
-A large sample size leads to a large range of possible support sizes which adds to the computational burdon.
-The computional tip here is to use the golden-section searching to avoid support size enumeration.
 """
+
+# %%
+# Introduction
+# ^^^^^^^^^^^^^^^^^^^^^^^
+# 
+# .. image:: ../../Tutorial/figure/large-sample.png
+#
+# A large sample size leads to a large range of possible support sizes which adds to the computational burdon.
+# The computational tip here is to use the golden-section searching to avoid support size enumeration.
+
 # %%
 # A motivated observation
 # ^^^^^^^^^^^^^^^^^^^^^^^
@@ -37,6 +45,7 @@ print("lowest point: ", np.argmin(ic))
 plt.plot(ic, 'o-')
 plt.xlabel('support size')
 plt.ylabel('EBIC')
+plt.title('Model Selection via EBIC')
 plt.show()
 
 # %%
@@ -46,6 +55,9 @@ plt.show()
 #
 # Motivated by this observation, we consider a golden-section search technique to determine the optimal support size
 # associated with the minimum EBIC.
+#
+# .. image:: ../../Tutorial/figure/goldenSection.png
+# 
 # Compare to the sequential searching, the golden section is much faster because it skip some support sizes which are likely to be a non-optimal one.
 # Precisely, searching the optimal support size one by one from a candidate set with :math:`O(s_{max})` complexity,
 # **golden-section** reduce the time complexity to :math:`O(\ln(s_{max}))`, giving a significant computational improvement.
@@ -96,5 +108,6 @@ print("golden-section time: ", time() - t2)
 # The ``abess`` R package also supports golden-section.
 # For R tutorial, please view
 # https://abess-team.github.io/abess/articles/v09-fasterSetting.html.
-
-# sphinx_gallery_thumbnail_path = '_static/largesample_cover.png'
+# 
+# sphinx_gallery_thumbnail_path = 'Tutorial/figure/large-sample.png'
+# 

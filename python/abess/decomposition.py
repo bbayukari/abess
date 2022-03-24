@@ -1,6 +1,6 @@
 import numbers
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, issparse
 from sklearn.utils.validation import check_array
 from pybind_cabess import pywrap_PCA, pywrap_RPCA
 from .bess_base import bess_base
@@ -84,6 +84,9 @@ class SparsePCA(bess_base):
             splicing_type=splicing_type
         )
 
+    def _more_tags(self):
+        return {'requires_y': False}
+
     def transform(self, X):
         r"""
         For PCA model, apply dimensionality reduction
@@ -120,7 +123,7 @@ class SparsePCA(bess_base):
         full = np.sum(np.diag(s))
         return explain / full
 
-    def fit(self, X=None, is_normal=False,
+    def fit(self, X=None, y=None, is_normal=False,
             group=None, Sigma=None, number=1, n=None, A_init=None):
         r"""
         The fit function is used to transfer the information of data and
@@ -130,6 +133,8 @@ class SparsePCA(bess_base):
         ----------
         X : array-like, shape(n_samples, p_features)
             Training data.
+        y : ignore
+            Ignore.
         is_normal : bool, optional, default=False
             whether normalize the variables array before fitting the algorithm.
         weight : array-like, shape(n_samples,), optional, default=np.ones(n)
@@ -151,8 +156,8 @@ class SparsePCA(bess_base):
         """
 
         # Input check
-        if isinstance(X, (list, np.ndarray, np.matrix, coo_matrix)):
-            if isinstance(X, coo_matrix):
+        if X is not None:
+            if issparse(X):
                 self.sparse_matrix = True
             X = check_array(X, accept_sparse=True)
 
@@ -161,6 +166,7 @@ class SparsePCA(bess_base):
             X = X - X.mean(axis=0)
             Sigma = np.cov(X.T)
             self.n_features_in_ = p
+            X_input = True
 
         elif isinstance(Sigma, (list, np.ndarray, np.matrix)):
             if self.cv > 1:
@@ -179,6 +185,7 @@ class SparsePCA(bess_base):
             X = np.zeros((1, p))
             self.n_features_in_ = p
             is_normal = False
+            X_input = False
         else:
             raise ValueError("X or Sigma should be given in PCA.")
 
@@ -311,7 +318,7 @@ class SparsePCA(bess_base):
 
         # Sparse X
         if self.sparse_matrix:
-            if not isinstance(X, type(coo_matrix((1, 1)))):
+            if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
                 tmp = np.zeros([X.shape[0] * X.shape[1], 3])
@@ -344,37 +351,41 @@ class SparsePCA(bess_base):
 
         # unused
         early_stop = False
+        self.n_iter_ = 1
 
         # wrap with cpp
-        weight = np.ones(n)
-        result = pywrap_PCA(
-            X, weight,
-            n, p, normalize, Sigma,
-            self.max_iter, self.exchange_num,
-            path_type_int, self.is_warm_start,
-            ic_type_int, self.ic_coef, self.cv,
-            g_index,
-            support_sizes,
-            cv_fold_id,
-            new_s_min, new_s_max,
-            self.screening_size,
-            always_select_list,
-            early_stop,
-            self.thread,
-            self.sparse_matrix,
-            self.splicing_type,
-            self.important_search,
-            number,
-            A_init
-        )
+        if (X_input and n < p) or (p <= number):
+            result = [np.ones((p, number))]
+        else:
+            weight = np.ones(n)
+            result = pywrap_PCA(
+                X, weight,
+                n, p, normalize, Sigma,
+                self.max_iter, self.exchange_num,
+                path_type_int, self.is_warm_start,
+                ic_type_int, self.ic_coef, self.cv,
+                g_index,
+                support_sizes,
+                cv_fold_id,
+                new_s_min, new_s_max,
+                self.screening_size,
+                always_select_list,
+                early_stop,
+                self.thread,
+                self.sparse_matrix,
+                self.splicing_type,
+                self.important_search,
+                number,
+                A_init
+            )
 
         self.coef_ = result[0]
         return self
 
-    def fit_transform(self, X=None, is_normal=False,
+    def fit_transform(self, X=None, y=None, is_normal=False,
                       group=None, Sigma=None, number=1, n=None, A_init=None):
-        self.fit(X, is_normal, group, Sigma, number, n, A_init)
-        return X.dot(self.coef_)
+        self.fit(X, y, is_normal, group, Sigma, number, n, A_init)
+        return X @ self.coef_
 
 
 @fix_docs
@@ -433,7 +444,14 @@ class RobustPCA(bess_base):
             splicing_type=splicing_type
         )
 
-    def fit(self, X, r, group=None, A_init=None):
+    def _more_tags(self):
+        # Note: We ignore estimator's check here because `RobustPCA()`
+        # is not an standard "estimator".
+        # There is no "coefficient", not even "model" to test.
+        # (It just returns the transformation of `X`.)
+        return {'_skip_test': True}
+
+    def fit(self, X, y=None, r=None, group=None, A_init=None):
         r"""
         The fit function is used to transfer the information of
         data and return the fit result.
@@ -442,6 +460,8 @@ class RobustPCA(bess_base):
         ----------
         X : array-like, shape(n_samples, p_features)
             Training data.
+        y : ignore
+            Ignore.
         r : int
             Rank of the (recovered) information matrix L.
             It should be smaller than rank of X
@@ -451,14 +471,17 @@ class RobustPCA(bess_base):
         """
 
         # Input check
-        if isinstance(X, (list, np.ndarray, np.matrix, coo_matrix)):
-            if isinstance(X, coo_matrix):
+        if X is not None:
+            if issparse(X):
                 self.sparse_matrix = True
             X = check_array(X, accept_sparse=True)
 
             n = X.shape[0]
             p = X.shape[1]
             self.n_features_in_ = p
+
+            if r is None:
+                r = min(n, p) - 1
         else:
             raise ValueError("X should be an array.")
 
@@ -568,7 +591,7 @@ class RobustPCA(bess_base):
 
         # Sparse X
         if self.sparse_matrix:
-            if not isinstance(X, type(coo_matrix((1, 1)))):
+            if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
                 tmp = np.zeros([X.shape[0] * X.shape[1], 3])
@@ -602,27 +625,30 @@ class RobustPCA(bess_base):
         early_stop = False
 
         # wrap with cpp
-        result = pywrap_RPCA(
-            X, n, p, normalize,
-            self.max_iter, self.exchange_num,
-            path_type_int, self.is_warm_start,
-            ic_type_int, self.ic_coef,
-            g_index,
-            support_sizes,
-            alphas,
-            new_s_min, new_s_max,
-            new_lambda_min, new_lambda_max, n_lambda,
-            self.screening_size,
-            always_select_list,
-            self.primary_model_fit_max_iter, self.primary_model_fit_epsilon,
-            early_stop,
-            self.thread,
-            self.sparse_matrix,
-            self.splicing_type,
-            self.important_search,
-            A_init
-        )
+        if r < 1:
+            result = [X]
+        else:
+            result = pywrap_RPCA(
+                X, n, p, normalize,
+                self.max_iter, self.exchange_num,
+                path_type_int, self.is_warm_start,
+                ic_type_int, self.ic_coef,
+                g_index,
+                support_sizes,
+                alphas,
+                new_s_min, new_s_max,
+                new_lambda_min, new_lambda_max, n_lambda,
+                self.screening_size,
+                always_select_list,
+                self.primary_model_fit_max_iter,
+                self.primary_model_fit_epsilon,
+                early_stop,
+                self.thread,
+                self.sparse_matrix,
+                self.splicing_type,
+                self.important_search,
+                A_init
+            )
 
         self.coef_ = result[0].reshape(p, n).T
-        self.train_loss_ = result[2]
         return self

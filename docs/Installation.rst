@@ -51,7 +51,7 @@ langulage you prefer.
 Python
 ~~~~~~
 
-Before installing abess itself, some dependent libraries should be installed
+Before installing ``abess``, some dependent libraries should be installed
 first, which may be a little different in
 different platforms:
 
@@ -71,12 +71,19 @@ After that, we can manually install ``abess`` by conducting command:
 .. code:: bash
 
    $ cd ./python
+   $ pip install .
+
+or
+
+.. code:: bash
+
+   $ cd ./python
    $ python setup.py install --user
 
 If it finishes with ``Finished processing dependencies for abess``, the
 installation is successful.
 
-Alternatively, if you would like to develop ``abess``, install ``abess`` in `editable mode <https://peps.python.org/pep-0660/>` 
+Alternatively, if you would like to develop ``abess``, install ``abess`` in `editable mode <https://peps.python.org/pep-0660/>`__ 
 (it is very convenient for development): 
 
 .. code:: bash
@@ -84,30 +91,51 @@ Alternatively, if you would like to develop ``abess``, install ``abess`` in `edi
    $ cd ./python
    $ pip install -e .
 
+or
+
+.. code:: bash
+
+   $ cd ./python
+   $ python setup.py develop --user
+
+Note that some may meet "Permission denied" problem like `this issue <https://github.com/pypa/pip/issues/7953>`__
+when installing with ``pip install -e .``. There are three solutions: 
+1. run the command as administrator;
+2. feel free to use ``python setup.py develop --user`` instead;
+3. try to edit ``setup.py`` like `here <https://github.com/pypa/pip/issues/7953#issuecomment-645133255>`__ (not recommend).
+
 .. _r-1:
 
 R
 ~
 
-To install the development version, run the following code in R console:
+To install the development version, some dependencies need to be installed. 
+Before installing ``abess``, some dependencies should be installed
+first, which may be a little different in different platforms:
+
+-  **Linux**: ``$ sudo apt install autoconf`` (for Ubuntu,
+   other Linux systems are similar);
+-  **Windows**: install `Rtools <https://cran.r-project.org/bin/windows/Rtools/>`__.
+-  **MacOS**: ``$ brew install autoconf``.
+
+Then, you need to install R library dependencies ``Rcpp`` and ``RcppEigen`` via conducting ``install.packages(c("Rcpp", "RcppEigen"))`` in R console. 
+
+After installing dependencies, run the following code in terminal/bash:
 
 .. code:: bash
-
-   R CMD INSTALL R-package
+   cd R-package
+   autoreconf
+   R CMD INSTALL .
 
 If it finishes with ``* DONE (abess)``, the installation is successful.
 
-Windows user will need to install
-`Rtools <https://cran.r-project.org/bin/windows/Rtools/>`__ first.
-
 Dependencies
-------------
+--------------
 
 C++
 ~~~
 
-Our core C++ code is based on some dependencies, which can be found in
-`abess/python/include <https://github.com/abess-team/abess/tree/master/python/include>`__:
+Our core C++ code is based on some dependencies:
 
 -  `Eigen <https://gitlab.com/libeigen/eigen/-/releases/3.3.4>`__
    (version 3.3.4): a C++ template library for linear algebra: matrices,
@@ -116,7 +144,7 @@ Our core C++ code is based on some dependencies, which can be found in
    (version 1.0.0): a header-only C++ library for large scale eigenvalue
    problems.
 
-They would be automatically included while installing the abess
+They would be automatically included while installing the ``abess``
 packages.
 
 OpenMP
@@ -157,7 +185,7 @@ Python
 
 Some `basic Python
 packages <https://github.com/abess-team/abess/blob/master/python/setup.py#:~:text=install_requires%3D%5B,%5D%2C>`__
-are required for abess. Actually, they can be found on
+are required for ``abess``. Actually, they can be found on
 ``abess/python/setup.py`` and automatically installed during the
 installation.
 
@@ -194,7 +222,7 @@ packages should be installed:
 R
 ~
 
-The R version should be 3.1.0 and newer in order to support C++11. abess
+The R version should be 3.1.0 and newer in order to support C++11. ``abess``
 R package relies on limited R packages dependencies:
 
 -  `Rcpp <https://cran.r-project.org/web/packages/Rcpp/index.html>`__:

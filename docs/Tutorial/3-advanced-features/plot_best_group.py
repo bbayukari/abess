@@ -11,14 +11,18 @@ Best Subset of Group Selection
 # Besides, in a nonparametric additive model, a continuous component can be represented by a set of basis functions
 # (e.g., a linear combination of spline basis functions). Finally, specific prior knowledge can impose group structures on variables.
 # A typical example is that the genes belonging to the same biological pathway can be considered as a group in the genomic data analysis.
+# Figure for distinct BSGS and best-subset selection is presented below.
+# 
+# .. image:: ../../Tutorial/figure/best-subset-group-selection.png 
 #
 # The BSGS can be achieved by solving:
 #
 # .. math::
-#     \min_{\beta\in \mathbb{R}^p} \frac{1}{2n} ||y-X\beta||_2^2,\quad s.t.\ ||\beta||_{0,2}\leq s .
+#     \min_{\beta\in \mathbb{R}^p} \frac{1}{2n} ||y-X\beta||_2^2,\; \textup{s.t.}\ ||\beta||_{0,2}\leq s .
 #
 #
-# where :math:`||\beta||_{0,2} = \sum_{j=1}^J I(||\beta_{G_j}||_2\neq 0)` in which :math:`||\cdot||_2` is the :math:`L_2` norm and model size :math:`s` is a positive integer to be determined from data.
+# where :math:`||\beta||_{0,2} = \sum_{j=1}^J I(||\beta_{G_j}||_2\neq 0)` in which :math:`||\cdot||_2` is the :math:`\ell_2` norm and model size :math:`s` is a positive integer to be determined from data.
+# 
 # Regardless of the NP-hard of this problem, Zhang et al develop a certifiably polynomial algorithm to solve it.
 # This algorithm is integrated in the ``abess`` package, and user can handily select best group subset by assigning a proper value to the ``group`` arguments:
 #
@@ -33,7 +37,7 @@ from abess.linear import LinearRegression
 
 np.random.seed(0)
 
-# gene data
+# generate data
 n = 100
 p = 20
 k = 5
@@ -52,11 +56,11 @@ group = np.linspace(0, 3, 4).repeat(5)
 print('group index:\n', group)
 
 # %%
-# Then we can set the `group` argument in function. Besides, the
-# `support_size` here indicates the number of groups, instead of the
+# Then we can set the ``group`` argument in function. Besides, the
+# ``support_size`` here indicates the number of groups, instead of the
 # number of variables.
 
-model1 = LinearRegression(support_size=range(0, 3))
+model1 = LinearRegression(support_size=range(3))
 model1.fit(data.x, data.y, group=group)
 print('coefficients:\n', model1.coef_)
 
@@ -77,5 +81,6 @@ print('coefficients:\n', model2.coef_)
 #
 # For R tutorial, please view
 # https://abess-team.github.io/abess/articles/v07-advancedFeatures.html.
-
-# sphinx_gallery_thumbnail_path = '_static/best-subset-group-selection.png'
+# 
+# sphinx_gallery_thumbnail_path = 'Tutorial/figure/best-subset-group-selection.png'
+# 

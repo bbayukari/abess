@@ -16,13 +16,12 @@ try:
     miss_dep = False
 except ImportError:
     miss_dep = True
-    pass
 
 from utilities import (
     assert_nan,
     assert_value,
     assert_fit,
-    save_data,
+    # save_data,
     load_data)
 
 
@@ -113,7 +112,7 @@ class TestAlgorithm:
             assert_value(coef[nonzero], reg.coef_)
 
         # null
-        # check_estimator(abess.LogisticRegression())
+        check_estimator(abess.LogisticRegression())
         model1 = abess.LogisticRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
@@ -168,7 +167,7 @@ class TestAlgorithm:
             assert_value(coef[nonzero], cph.params_.values, rel=5e-1, abs=5e-1)
 
         # null
-        # check_estimator(abess.CoxPHSurvivalAnalysis())
+        check_estimator(abess.CoxPHSurvivalAnalysis())
         model1 = abess.CoxPHSurvivalAnalysis()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
@@ -216,7 +215,7 @@ class TestAlgorithm:
             assert_value(coef[nonzero], reg.coef_)
 
         # null
-        # check_estimator(abess.PoissonRegression())
+        check_estimator(abess.PoissonRegression())
         model1 = abess.PoissonRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
@@ -246,7 +245,7 @@ class TestAlgorithm:
         data = load_data("multigaussian_seed1_rho0.5")
 
         # null
-        # check_estimator(abess.MultiTaskRegression())
+        check_estimator(abess.MultiTaskRegression())
         model1 = abess.MultiTaskRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
@@ -294,7 +293,7 @@ class TestAlgorithm:
         data = load_data('multinomial_seed5_rho0.5')
 
         # null
-        # check_estimator(abess.MultinomialRegression())
+        check_estimator(abess.MultinomialRegression())
         model1 = abess.MultinomialRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)
@@ -340,6 +339,7 @@ class TestAlgorithm:
         X = load_data('PCA_seed1')
 
         # null
+        check_estimator(abess.SparsePCA())
         model1 = abess.SparsePCA(support_size=support_size)
         model1.fit(X)
         assert np.count_nonzero(model1.coef_) == s
@@ -409,7 +409,7 @@ class TestAlgorithm:
         data = abess.make_glm_data(n=100, p=10, k=3, family="gamma")
 
         # null
-        # check_estimator(abess.GammaRegression())
+        check_estimator(abess.GammaRegression())
         model1 = abess.GammaRegression()
         model1.fit(data.x, data.y)
         assert_nan(model1.coef_)
@@ -438,7 +438,9 @@ class TestAlgorithm:
         X = L + S
 
         # null
+        check_estimator(abess.RobustPCA())
         model1 = abess.RobustPCA(support_size=s)
+        model1.fit(X)
         model1.fit(X, r=r)
         # assert_fit(model1.coef_, S)
 
@@ -474,6 +476,7 @@ class TestAlgorithm:
         data = load_data('ordinal_seed2')
 
         # null
+        check_estimator(abess.OrdinalRegression())
         model1 = abess.OrdinalRegression()
         model1.fit(data.x, data.y)
         assert_fit(model1.coef_, data.coef_)

@@ -1,6 +1,6 @@
 import numbers
 import numpy as np
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, csr_matrix
 from sklearn.base import BaseEstimator
 from pybind_cabess import pywrap_GLM
 from sklearn.utils.validation import check_X_y
@@ -127,7 +127,8 @@ class bess_base(BaseEstimator):
         splicing_type=0,
         important_search=0,
         # lambda_min=None, lambda_max=None,
-        # early_stop=False, n_lambda=100
+        # early_stop=False, n_lambda=100,
+        baseline_model=None
     ):
         self.algorithm_type = algorithm_type
         self.model_type = model_type
@@ -139,6 +140,7 @@ class bess_base(BaseEstimator):
         self.support_size = support_size
         self.alpha = alpha
         self.n_features_in_: int
+        self.n_iter_: int
         self.s_min = s_min
         self.s_max = s_max
         # self.lambda_min = None
@@ -158,6 +160,7 @@ class bess_base(BaseEstimator):
         self.sparse_matrix = sparse_matrix
         self.splicing_type = splicing_type
         self.important_search = important_search
+        self.baseline_model = baseline_model
 
     def fit(self,
             X=None,
@@ -202,8 +205,9 @@ class bess_base(BaseEstimator):
         # print("fit enter.")#///
 
         # Input check & init:
-        if isinstance(X, (list, np.ndarray, np.matrix, coo_matrix)):
-            if isinstance(X, coo_matrix):
+        if isinstance(X, (list, np.ndarray, np.matrix,
+                      coo_matrix, csr_matrix)):
+            if isinstance(X, (coo_matrix, csr_matrix)):
                 self.sparse_matrix = True
 
             # Check that X and y have correct shape
@@ -222,9 +226,9 @@ class bess_base(BaseEstimator):
                 y = y[:, 1].reshape(-1)
 
             # Dummy y for Multinomial
-            if self.model_type in (
-                    "Multinomial", "Ordinal") and len(y.shape) == 1:
-                y = categorical_to_dummy(y)
+            if (self.model_type in ("Multinomial", "Ordinal")
+                    and (len(y.shape) == 1 or y.shape[1] == 1)):
+                y = categorical_to_dummy(y.squeeze())
 
             # Init
             n = X.shape[0]
@@ -456,7 +460,7 @@ class bess_base(BaseEstimator):
 
         # Sparse X
         if self.sparse_matrix:
-            if not isinstance(X, type(coo_matrix((1, 1)))):
+            if not isinstance(X, (coo_matrix)):
                 # print("sparse matrix 1")
                 nonzero = 0
                 tmp = np.zeros([X.shape[0] * X.shape[1], 3])
@@ -493,17 +497,23 @@ class bess_base(BaseEstimator):
 
         # wrap with cpp
         # print("wrap enter.")#///
-        result = pywrap_GLM(
-            X, y, weight, n, p, normalize, algorithm_type_int, model_type_int,
-            self.max_iter, self.exchange_num, path_type_int,
-            self.is_warm_start, ic_type_int, self.ic_coef, self.cv, g_index,
-            support_sizes, alphas, cv_fold_id, new_s_min, new_s_max,
-            new_lambda_min, new_lambda_max, n_lambda, self.screening_size,
-            always_select_list, self.primary_model_fit_max_iter,
-            self.primary_model_fit_epsilon, early_stop,
-            self.approximate_Newton, self.thread, self.covariance_update,
-            self.sparse_matrix, self.splicing_type, self.important_search,
-            A_init)
+        if n == 1:
+            # with only one sample, nothing to be estimated
+            result = [np.zeros((p, M)), np.zeros(M), 0, 0, 0]
+        else:
+            result = pywrap_GLM(
+                X, y, weight, n, p, normalize, algorithm_type_int,
+                model_type_int,
+                self.max_iter, self.exchange_num, path_type_int,
+                self.is_warm_start, ic_type_int, self.ic_coef, self.cv,
+                g_index,
+                support_sizes, alphas, cv_fold_id, new_s_min, new_s_max,
+                new_lambda_min, new_lambda_max, n_lambda, self.screening_size,
+                always_select_list, self.primary_model_fit_max_iter,
+                self.primary_model_fit_epsilon, early_stop,
+                self.approximate_Newton, self.thread, self.covariance_update,
+                self.sparse_matrix, self.splicing_type, self.important_search,
+                A_init)
 
         # print("linear fit end")
         # print(len(result))
@@ -515,8 +525,8 @@ class bess_base(BaseEstimator):
         self.ic_ = result[4]
 
         if self.model_type == "Cox":
-            self._baseline_model.fit(np.dot(X, self.coef_), y, time)
-        if self.model_type == "Ordinal":
+            self.baseline_model.fit(np.dot(X, self.coef_), y, time)
+        if self.model_type == "Ordinal" and self.coef_.ndim > 1:
             self.coef_ = self.coef_[:, 0]
 
         return self

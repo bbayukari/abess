@@ -92,7 +92,9 @@ class LogisticRegression(bess_base):
             splicing_type=splicing_type,
             important_search=important_search
         )
-        self._baseline_model = BreslowEstimator()
+
+    def _more_tags(self):
+        return {'binary_only': True}
 
     def predict_proba(self, X):
         r"""
@@ -106,8 +108,8 @@ class LogisticRegression(bess_base):
 
         Returns
         -------
-        proba : array-like, shape(n_samples,)
-            Returns the probabilities for class "1"
+        proba : array-like, shape(n_samples, 2)
+            Returns the probabilities for class "0" and "1"
             on given X.
         """
         X = new_data_check(self, X)
@@ -115,7 +117,7 @@ class LogisticRegression(bess_base):
         intercept_ = np.ones(X.shape[0]) * self.intercept_
         xbeta = X.dot(self.coef_) + intercept_
         proba = np.exp(xbeta) / (1 + np.exp(xbeta))
-        return proba
+        return np.vstack((np.ones(X.shape[0]) - proba, proba)).T
 
     def predict(self, X):
         r"""
@@ -356,9 +358,15 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
             thread=thread,
             sparse_matrix=sparse_matrix,
             splicing_type=splicing_type,
-            important_search=important_search
+            important_search=important_search,
+            baseline_model=BreslowEstimator()
         )
-        self._baseline_model = BreslowEstimator()
+
+    def _more_tags(self):
+        # Note: We ignore estimator's check here because it would pass
+        # an 1-column `y` for testing, but for `CoxPHSurvivalAnalysis()`,
+        # 2-column `y` should be given (one for time, another for censoring).
+        return {'_skip_test': True}
 
     def predict(self, X):
         r"""
@@ -409,7 +417,7 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
         with feature vector :math:`x` is defined as
 
         .. math::
-            S(t \\mid x) = S_0(t)^{\\exp(x^\\top \\beta)} ,
+            S(t \mid x) = S_0(t)^{\exp(x^\top \beta)} ,
 
         where :math:`S_0(t)` is the baseline survival function,
         estimated by Breslow's estimator.
@@ -424,7 +432,7 @@ class CoxPHSurvivalAnalysis(bess_base, BreslowEstimator):
         survival : ndarray of :class:`StepFunction`, shape = (n_samples,)
             Predicted survival functions.
         """
-        return self._baseline_model.get_survival_function(
+        return self.baseline_model.get_survival_function(
             np.log(self.predict(X)))
 
 
@@ -565,15 +573,15 @@ class MultiTaskRegression(bess_base):
     --------
     >>> ### Sparsity known
     >>>
-    >>> from abess.linear import MultipleLinearRegression
+    >>> from abess.linear import MultiTaskRegression
     >>> from abess.datasets import make_multivariate_glm_data
     >>> import numpy as np
     >>> np.random.seed(12345)
     >>> data = make_multivariate_glm_data(
     >>>     n = 100, p = 50, k = 10, M = 3, family = 'multigaussian')
-    >>> model = MultipleLinearRegression(support_size = 10)
+    >>> model = MultiTaskRegression(support_size = 10)
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[], support_size=10)
+    MultiTaskRegression(always_select=[], support_size=10)
     >>> model.predict(data.x)[1:5, ]
     array([[1., 0., 0.],
        [0., 0., 1.],
@@ -584,9 +592,9 @@ class MultiTaskRegression(bess_base):
     >>> ### Sparsity unknown
     >>>
     >>> # path_type="seq"
-    >>> model = MultipleLinearRegression(path_type = "seq")
+    >>> model = MultiTaskRegression(path_type = "seq")
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[])
+    MultiTaskRegression(always_select=[])
     >>> model.predict(data.x)[1:5, ]
     array([[1., 0., 0.],
        [0., 0., 1.],
@@ -595,9 +603,9 @@ class MultiTaskRegression(bess_base):
        [0., 0., 1.]])
     >>>
     >>> # path_type="gs"
-    >>> model = MultipleLinearRegression(path_type="gs")
+    >>> model = MultiTaskRegression(path_type="gs")
     >>> model.fit(data.x, data.y)
-    MultinomialRegression(always_select=[], path_type='gs')
+    MultiTaskRegression(always_select=[], path_type='gs')
     >>> model.predict(data.x)[1:5, ]
     array([[1., 0., 0.],
        [0., 0., 1.],
@@ -631,6 +639,10 @@ class MultiTaskRegression(bess_base):
             important_search=important_search
         )
 
+    def _more_tags(self):
+        return {'multioutput': True,
+                'multioutput_only': True}
+
     def predict(self, X):
         r"""
         Prediction of the mean of each response on given data.
@@ -650,7 +662,7 @@ class MultiTaskRegression(bess_base):
 
         intercept_ = np.repeat(
             self.intercept_[np.newaxis, ...], X.shape[0], axis=0)
-        return X.dot(self.coef_) + intercept_
+        return (X.dot(self.coef_) + intercept_)[:, np.newaxis]
 
     def score(self, X, y):
         r"""
@@ -766,6 +778,10 @@ class MultinomialRegression(bess_base):
             important_search=important_search
         )
 
+    def _more_tags(self):
+        return {'multilabel': True,
+                'multioutput_only': True}
+
     def predict_proba(self, X):
         r"""
         Give the probabilities of new data being assigned to different classes.
@@ -787,8 +803,9 @@ class MultinomialRegression(bess_base):
             self.intercept_[np.newaxis, ...], X.shape[0], axis=0)
         xbeta = X.dot(self.coef_) + intercept_
         eta = np.exp(xbeta)
+        pr = np.zeros_like(xbeta)
         for i in range(X.shape[0]):
-            pr = eta[i, :] / np.sum(eta[i, :])
+            pr[i, :] = eta[i, :] / np.sum(eta[i, :])
         return pr
 
     def predict(self, X):
@@ -813,10 +830,10 @@ class MultinomialRegression(bess_base):
             self.intercept_[np.newaxis, ...], X.shape[0], axis=0)
         xbeta = X.dot(self.coef_) + intercept_
         max_item = np.argmax(xbeta, axis=1)
-        y_pred = np.zeros_like(xbeta)
-        for i in range(X.shape[0]):
-            y_pred[i, max_item[i]] = 1
-        return y_pred
+        # y_pred = np.zeros_like(xbeta)
+        # for i in range(X.shape[0]):
+        #     y_pred[i, max_item[i]] = 1
+        return max_item[:, np.newaxis]
 
     def score(self, X, y):
         """
