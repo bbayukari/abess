@@ -92,6 +92,7 @@ List abessWorkflow(T4 &x, T1 &y, int n, int p, int normalize_type, Eigen::Vector
     // Data packing & normalize:
     //     pack & initial all information of data,
     //     including normalize.
+    // 关键在于g_size，需要做差分
     Data<T1, T2, T3, T4> data(x, y, normalize_type, weight, g_index, sparse_matrix, beta_size);
     if (algorithm_list[0]->model_type == 1 || algorithm_list[0]->model_type == 5) {
         add_weight(data.x, data.y, data.weight); // linear and mul linear model
@@ -101,6 +102,7 @@ List abessWorkflow(T4 &x, T1 &y, int n, int p, int normalize_type, Eigen::Vector
     //     if there are too many noise variables,
     //     screening can choose the `screening_size` most important variables
     //     and then focus on them later.
+    // 得给univeral重写个新的
     Eigen::VectorXi screening_A;
     if (screening_size >= 0) {
         screening_A = screening<T1, T2, T3, T4>(data, algorithm_list, screening_size, beta_size,

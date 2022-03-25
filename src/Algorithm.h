@@ -200,7 +200,7 @@ class Algorithm {
      * @param g_index the first position of each group
      * @param g_size size of each group
      * @param train_n sample size for training, i.e. the number of rows in `train_x`
-     * @param p number of variables, i.e. the number of columns in `train_x`
+     * @param p number of variables, i.e. the number of columns in `train_x` 其实没用到
      * @param N number of different groups
      */
     void fit(T4 &train_x, T1 &train_y, Eigen::VectorXd &train_weight, Eigen::VectorXi &g_index, Eigen::VectorXi &g_size,
