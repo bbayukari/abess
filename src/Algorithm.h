@@ -52,6 +52,7 @@
 
 #include "utilities.h"
 
+
 using namespace std;
 
 #define FINAL_FIT_ITER_ADD 20
@@ -234,6 +235,7 @@ class Algorithm {
             this->A_out = Eigen::VectorXi::LinSpaced(N, 0, N - 1);
             // T2 beta_old = this->beta;
             // T3 coef0_old = this->coef0;
+
             bool success = this->primary_model_fit(train_x, train_y, train_weight, this->beta, this->coef0, DBL_MAX,
                                                    this->A_out, g_index, g_size);
             // if (!success){
@@ -566,6 +568,7 @@ class Algorithm {
 
             Eigen::VectorXi U = Eigen::VectorXi::LinSpaced(N, 0, N - 1);
             Eigen::VectorXi U_ind = Eigen::VectorXi::LinSpaced(beta_size, 0, beta_size - 1);
+            SPDLOG_INFO("firstly compute sacrifices in inital_screening");
             this->sacrifice(X, X_A, y, beta, beta_A, coef0, A, I, weights, g_index, g_size, N, A_ind, bd, U, U_ind, 0);
             // A_init
             for (int i = 0; i < A.size(); i++) {
@@ -575,6 +578,7 @@ class Algorithm {
             for (int i = 0; i < this->always_select.size(); i++) {
                 bd(this->always_select(i)) = DBL_MAX;
             }
+            SPDLOG_INFO("inital_screening success with {}", bd);
         }
 
         // get Active-set A according to max_k bd

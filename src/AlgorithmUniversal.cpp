@@ -1,17 +1,14 @@
 #include "AlgorithmUniversal.h"
 
-// #include "OptimLib/optim.hpp"
 #ifdef R_BUILD
 // [[Rcpp::depends(nloptr)]]
 #include <nloptrAPI.h>
 #else
 #include <nlopt.h> 
 #endif
-#include <iostream> // just for debug
 
 using namespace std;
 using namespace Eigen;
-// using namespace optim;
 
 double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, VectorXi& A,
     VectorXi& g_index, VectorXi& g_size, double lambda) 
@@ -22,12 +19,6 @@ double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, Ve
 bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, double loss0,
     VectorXi& A, VectorXi& g_index, VectorXi& g_size) 
 {    
-    static int nlopt_run_times = 1;
-    cout << "nlopt is running " << nlopt_run_times++  << "times" << endl;
-    cout << "init value is :" << intercept << endl;
-    cout << active_para << endl;
-    cout << "init loss is " << active_data.loss(active_para, intercept, this->lambda_level) << endl;
-
     double value = 0.;
     unsigned optim_size = active_para.size() + intercept.size();
     VectorXd optim_para(optim_size);
@@ -42,8 +33,6 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
 
     intercept = optim_para.head(intercept.size());
     active_para = optim_para.tail(active_para.size());
-    cout << "optim value is :" << optim_para << endl;
-    cout << "optim loss is " << active_data.loss(active_para, intercept, this->lambda_level) << endl;
     return result > 0;
 }
 
@@ -100,6 +89,3 @@ double abessUniversal::effective_number_of_parameter(UniversalData& X, Universal
     }
     return enp;
 }
-
-
-

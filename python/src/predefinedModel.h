@@ -7,6 +7,8 @@
 #include <autodiff/forward/dual.hpp>
 #include <autodiff/forward/dual/eigen.hpp>
 #include <vector>
+#include "utilities.h" // for spdlog
+
 using ExternData = pybind11::object;
 using Eigen::VectorXd;
 using Eigen::VectorXi;
@@ -23,10 +25,10 @@ struct PredefinedData {
     MatrixXd x;
     MatrixXd y;
     PredefinedData(MatrixXd x, MatrixXd y) : x(x), y(y) {
-        pybind11::print("Constructor", ++data_num);
+        SPDLOG_INFO("Constructor {}", ++data_num);
     }
     ~PredefinedData() {
-        pybind11::print("Destructor", --data_num);
+        SPDLOG_INFO("Destructor {}", --data_num);
     }
 };
 int PredefinedData::data_num = 0;

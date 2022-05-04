@@ -23,6 +23,11 @@
 #include <cfloat>
 #include <iostream>
 #include "UniversalData.h"
+// #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
+#include "spdlog/spdlog.h"
+#include "spdlog/fmt/ostr.h"
+
 using namespace std;
 using namespace Eigen;
 
