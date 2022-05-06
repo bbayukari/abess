@@ -23,9 +23,19 @@
 #include <cfloat>
 #include <iostream>
 #include "UniversalData.h"
-// #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_OFF
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_INFO
+#ifndef	SPDLOG_ACTIVE_LEVEL
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+/**
+  * Usage example:
+  *     SPDLOG_ERROR("Some error message with arg: {}", 1);
+  *     SPDLOG_WARN("Positional args are {1} {0}..", "too", "supported");
+  *     SPDLOG_INFO("Support for floats {:03.2f}", 1.23456);
+  *     SPDLOG_DEBUG("Eigen Matrix\n{}", Eigen::MatrixXd::Ones(3, 4));
+  */
+#endif
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/rotating_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/fmt/ostr.h"
 
 using namespace std;
@@ -42,6 +52,8 @@ constexpr int PCA_MODEL = 7;
 constexpr int GAMMA_MODEL = 8;
 constexpr int ORDINAL_MODEL = 9;
 constexpr int RPCA_MODEL = 10;
+
+void init_spdlog(int console_log_level = SPDLOG_LEVEL_OFF, int file_log_level = SPDLOG_LEVEL_INFO);
 
 /**
  * @brief Save the sequential fitting result along the parameter searching.

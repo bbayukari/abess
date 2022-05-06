@@ -558,4 +558,18 @@ void add_weight(Eigen::SparseMatrix<double> &x, Eigen::MatrixXd &y, Eigen::Vecto
     array_product(y, sqrt_weight, 1);
 };
 
+void init_spdlog(int console_log_level/*=SPDLOG_LEVEL_OFF*/, int file_log_level/*=SPDLOG_LEVEL_INFO*/)
+{
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    console_sink->set_level(spdlog::level::level_enum(console_log_level));
+    console_sink->set_pattern("[%T.%e][%s:%#, %!][%^%l%$] : %v");
 
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/abess.log", 1024 * 1024 * 10, 10);
+    rotating_sink->set_level(spdlog::level::level_enum(file_log_level));
+    rotating_sink->set_pattern("[%Y/%m/%d][%T.%e][elapsed %o][thread %t][%s:%#, %!][%^%l%$] : %v");
+
+    std::vector<spdlog::sink_ptr> sinks{console_sink, rotating_sink};
+    auto multi_sink_logger = std::make_shared<spdlog::logger>("multi_sink_logger", sinks.begin(), sinks.end());
+    multi_sink_logger->set_level(spdlog::level::level_enum(SPDLOG_ACTIVE_LEVEL));
+    spdlog::set_default_logger(multi_sink_logger);
+}

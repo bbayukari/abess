@@ -140,3 +140,5 @@ python/*.so
 .vs/
 *.pyproj
 tem_*
+logs
+abess.egg-info

@@ -7,6 +7,7 @@
 #include <autodiff/forward/dual.hpp>
 #include <autodiff/forward/dual/eigen.hpp>
 #include <vector>
+#include <exception>
 #include "utilities.h" // for spdlog
 
 using ExternData = pybind11::object;
@@ -25,10 +26,10 @@ struct PredefinedData {
     MatrixXd x;
     MatrixXd y;
     PredefinedData(MatrixXd x, MatrixXd y) : x(x), y(y) {
-        SPDLOG_INFO("Constructor {}", ++data_num);
+        SPDLOG_DEBUG("Constructor {}", ++data_num);
     }
     ~PredefinedData() {
-        SPDLOG_INFO("Destructor {}", --data_num);
+        SPDLOG_DEBUG("Destructor {}", --data_num);
     }
 };
 int PredefinedData::data_num = 0;
@@ -53,7 +54,8 @@ ExternData slice_by_sample(ExternData const& old_data, VectorXi const& target_sa
 void deleter(ExternData const& data) { delete data.cast<PredefinedData*>(); }
 
 template <class T>
-T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) {
+T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) noexcept{
+try {
     PredefinedData* data = ex_data.cast<PredefinedData*>();
     T v = T(0.0);
     Eigen::Index m = intercept.size();
@@ -64,6 +66,10 @@ T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, 
         v += ((data->x * beta - data->y.col(i)).array() + intercept[i]).square().sum();
     }
     return v;
+} catch (const std::exception& e){
+    SPDLOG_ERROR("model wrong!\n{}", e.what());
+    return T(0.0);
+}
 }
 
 

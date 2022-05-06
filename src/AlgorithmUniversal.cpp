@@ -18,7 +18,8 @@ double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, Ve
 
 bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, double loss0,
     VectorXi& A, VectorXi& g_index, VectorXi& g_size) 
-{    
+{
+    SPDLOG_DEBUG("optimization\n init loss: {}\nintercept:{}\ncoefficient:{}", loss0, intercept.transpose(), active_para.transpose());    
     double value = 0.;
     unsigned optim_size = active_para.size() + intercept.size();
     VectorXd optim_para(optim_size);
@@ -28,12 +29,17 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
 
     nlopt_opt opt = nlopt_create(NLOPT_LD_LBFGS, optim_size);
     nlopt_set_min_objective(opt, f, &active_data);
-    int result = nlopt_optimize(opt, optim_para.data(), &value); // positive return values means success
+    nlopt_result result = nlopt_optimize(opt, optim_para.data(), &value); // positive return values means success
     nlopt_destroy(opt);
 
+    bool success = result > 0;
+    if(!success){
+        SPDLOG_WARN("failed to optimize, state: {} ", nlopt_result_to_string(result));
+    }
     intercept = optim_para.head(intercept.size());
     active_para = optim_para.tail(active_para.size());
-    return result > 0;
+    SPDLOG_DEBUG("optimization\n final loss: {}\nintercept:{}\ncoefficient:{}", value, intercept.transpose(), active_para.transpose());
+    return success;
 }
 
 void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd& y, VectorXd& para, VectorXd& beta_A, VectorXd& intercept, VectorXi& A, VectorXi& I, VectorXd& weights, VectorXi& g_index, VectorXi& g_size, int g_num, VectorXi& A_ind, VectorXd& sacrifice, VectorXi& U, VectorXi& U_ind, int num)
@@ -54,21 +60,26 @@ void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd&
         VectorXd gradient_group(g_size(I[i]));
         MatrixXd hessian_group(g_size(I[i]), g_size(I[i]));
         data.hessian(para, intercept, gradient_group, hessian_group, g_index(I[i]), g_size(I[i]), this->lambda_level);
-        if (g_size(I[i]) == 1) {
-            // Optimize for degradation situations, it often happens
+        if (g_size(I[i]) == 1) { // Optimize for degradation situations, it often happens
             if (hessian_group(0, 0) < this->enough_small) {
-                cout << "hessian is not positive definite!"; 
-                sacrifice(I[i]) = gradient_group(0, 0) * gradient_group(0, 0) / this->enough_small;
+                SPDLOG_ERROR("hessian is not positive definite:\n{}", hessian_group(0, 0));
+                sacrifice(I[i]) = DBL_MAX; // TODO
             }
             else {
                 sacrifice(I[i]) = gradient_group(0, 0) * gradient_group(0, 0) / hessian_group(0, 0);
             }
         }
         else {
-            //? TODO: hessian may be not positive definite
-            MatrixXd inv_hessian_group = hessian_group.ldlt().solve(MatrixXd::Identity(g_size(i), g_size(i)));
-            sacrifice(I[i]) = gradient_group.transpose() * inv_hessian_group * gradient_group;
-            sacrifice(I[i]) /= g_size(I[i]);
+            LLT<MatrixXd> hessian_group_llt(hessian_group);
+            if (hessian_group_llt.info() == NumericalIssue){
+                SPDLOG_ERROR("hessian is not positive definite:\n{}", hessian_group);
+                sacrifice(I[i]) = DBL_MAX; // TODO
+            }
+            else{
+                MatrixXd inv_hessian_group = hessian_group_llt.solve(MatrixXd::Identity(g_size(i), g_size(i)));
+                sacrifice(I[i]) = gradient_group.transpose() * inv_hessian_group * gradient_group;
+                sacrifice(I[i]) /= g_size(I[i]);
+            }
         }
     }
 }
@@ -82,7 +93,7 @@ double abessUniversal::effective_number_of_parameter(UniversalData& X, Universal
     MatrixXd hessian(active_data.cols(), active_data.cols());
     VectorXd g;
     active_data.hessian(active_para, intercept, g, hessian, 0, active_data.cols(), this->lambda_level);
-    SelfAdjointEigenSolver<MatrixXd> adjoint_eigen_solver(hessian);
+    SelfAdjointEigenSolver<MatrixXd> adjoint_eigen_solver(hessian, EigenvaluesOnly);
     double enp = 0.;
     for (int i = 0; i < adjoint_eigen_solver.eigenvalues().size(); i++) {
         enp += adjoint_eigen_solver.eigenvalues()(i) / (adjoint_eigen_solver.eigenvalues()(i) + this->lambda_level);

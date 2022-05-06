@@ -157,6 +157,7 @@ PYBIND11_MODULE(pybind_cabess, m) {
     m.def("pywrap_RPCA", &pywrap_RPCA);
     m.def("pywrap_Universal", &pywrap_Universal);
     // predefine some function for test
+    m.def("init_spdlog", &init_spdlog, pybind11::arg("console_log_level") = SPDLOG_LEVEL_OFF, pybind11::arg("file_log_level") = SPDLOG_LEVEL_INFO);
     pybind11::class_<PredefinedData>(m, "Data").def(pybind11::init<MatrixXd, MatrixXd>());
     m.def("loss_linear", &linear_model<double>);
     m.def("gradient_linear", &linear_model<dual>);
