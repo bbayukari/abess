@@ -19,7 +19,7 @@ double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, Ve
 bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, double loss0,
     VectorXi& A, VectorXi& g_index, VectorXi& g_size) 
 {
-    SPDLOG_DEBUG("optimization\n init loss: {}\nintercept:{}\ncoefficient:{}", loss0, intercept.transpose(), active_para.transpose());    
+    SPDLOG_DEBUG("optimization\ninit loss: {}\nintercept:{}\ncoefficient:{}", loss0, intercept.transpose(), active_para.transpose());    
     double value = 0.;
     unsigned optim_size = active_para.size() + intercept.size();
     VectorXd optim_para(optim_size);
@@ -38,7 +38,7 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
     }
     intercept = optim_para.head(intercept.size());
     active_para = optim_para.tail(active_para.size());
-    SPDLOG_DEBUG("optimization\n final loss: {}\nintercept:{}\ncoefficient:{}", value, intercept.transpose(), active_para.transpose());
+    SPDLOG_DEBUG("optimization\nfinal loss: {}\nintercept:{}\ncoefficient:{}", value, intercept.transpose(), active_para.transpose());
     return success;
 }
 

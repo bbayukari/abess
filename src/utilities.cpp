@@ -562,11 +562,11 @@ void init_spdlog(int console_log_level/*=SPDLOG_LEVEL_OFF*/, int file_log_level/
 {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_level(spdlog::level::level_enum(console_log_level));
-    console_sink->set_pattern("[%T.%e][%s:%#, %!][%^%l%$] : %v");
+    console_sink->set_pattern("[%T.%e][%s:%#, %!][%^%l%$]: %v");
 
     auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("logs/abess.log", 1024 * 1024 * 10, 10);
     rotating_sink->set_level(spdlog::level::level_enum(file_log_level));
-    rotating_sink->set_pattern("[%Y/%m/%d][%T.%e][elapsed %o][thread %t][%s:%#, %!][%^%l%$] : %v");
+    rotating_sink->set_pattern("[%Y/%m/%d][%T.%e][elapsed %o][Process %P Thread %t][%s:%#, %!][%^%l%$]: %v");
 
     std::vector<spdlog::sink_ptr> sinks{console_sink, rotating_sink};
     auto multi_sink_logger = std::make_shared<spdlog::logger>("multi_sink_logger", sinks.begin(), sinks.end());
