@@ -3,10 +3,6 @@ import numpy as np
 from .pybind_cabess import pywrap_Universal
 from .pybind_cabess import UniversalModel
 from .utilities import check_positive_integer, check_non_negative_integer
-from jax import jacfwd, jacrev
-from jax import grad as jax_grad
-import jax.numpy as jnp
-
 
 class ConvexSparseSolver(BaseEstimator):
     r"""
@@ -435,7 +431,7 @@ class ConvexSparseSolver(BaseEstimator):
         self.model.set_gradient_autodiff(gradient)
         self.model.set_hessian_autodiff(hessian)
 
-    def set_model_jax(self, loss):
+    def set_model_jax(self, loss, jit=False):
         r"""
         Register callback function: loss of model.
 
@@ -443,11 +439,24 @@ class ConvexSparseSolver(BaseEstimator):
         ----------
         loss : function {'para': array-like, 'intercept': array-like, 'data': ExternData, 'return': float}
         """
+        from jax import jacfwd, jacrev
+        from jax import grad as jax_grad
+        import jax.numpy as jnp
+        
+        if jit:
+            from jax import jit
+            loss = jit(loss)
+        else:
+            def jit(f):
+                return f
+
         # the function for differential
+        @jit
         def func_(para_compute, intercept, para, ind, data):
             para_complete = para.at[ind].set(para_compute)
             return loss(para_complete, intercept, data)
 
+        @jit
         def grad_(para, intercept, data, compute_para_index):
             para_j = jnp.array(para)
             intercept_j = jnp.array(intercept)
@@ -460,6 +469,7 @@ class ConvexSparseSolver(BaseEstimator):
                 )
             )
 
+        @jit
         def hessian_(para, intercept, data, compute_para_index):
             para_j = jnp.array(para)
             intercept_j = jnp.array(intercept)

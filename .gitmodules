@@ -1,3 +1,0 @@
-[submodule "python/nlopt"]
-	path = python/nlopt
-	url = https://github.com/stevengj/nlopt.git
