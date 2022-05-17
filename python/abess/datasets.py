@@ -81,7 +81,8 @@ class make_glm_data:
         The scale of survival time in Cox data.
     snr: float, optional, default=None
         A numerical value controlling the signal-to-noise ratio (SNR)
-        in gaussian data.
+        in gaussian data. Unit is dB, which means that 
+        snr = 10*log10(signal_power/noise_power).
     class_num: int, optional, default=3
         The number of possible classes in oridinal dataset, i.e.
         :math:`y \in \{0, 1, 2, ..., \text{class_num}-1\}`
@@ -214,9 +215,11 @@ class make_glm_data:
                 y = np.matmul(x, Tbeta) + sigma * np.random.normal(0, 1, n)
             else:
                 y = np.matmul(x, Tbeta)
-                power = np.mean(np.square(y))
-                npower = power / 10 ** (snr / 10)
-                noise = np.random.randn(len(y)) * np.sqrt(npower)
+                noise=np.random.randn(n) 
+                noise=noise-np.mean(noise)
+                signal_power = np.mean(np.square(y))
+                noise_power = signal_power/np.power(10,(snr/10))              
+                noise=(np.sqrt(noise_power)/np.std(noise))*noise
                 y += noise
 
         elif family == "binomial":
