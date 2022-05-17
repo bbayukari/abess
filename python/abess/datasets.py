@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.preprocessing import StandardScaler
 
 def sample(p, k):
     full = np.arange(p)
@@ -86,6 +86,8 @@ class make_glm_data:
     class_num: int, optional, default=3
         The number of possible classes in oridinal dataset, i.e.
         :math:`y \in \{0, 1, 2, ..., \text{class_num}-1\}`
+    standardize: bool, optional, default=False
+        Standardize Design matrix by removing the mean and scaling to unit variance.
 
     Attributes
     ----------
@@ -176,7 +178,7 @@ class make_glm_data:
 
     def __init__(self, n, p, k, family, rho=0, corr_type="const", sigma=1,
                  coef_=None,
-                 censoring=True, c=1, scal=10, snr=None, class_num=3):
+                 censoring=True, c=1, scal=10, snr=None, class_num=3, standardize=False):
         self.n = n
         self.p = p
         self.k = k
@@ -199,7 +201,11 @@ class make_glm_data:
                 "corr_type should be \'const\' or \'exp\'")
 
         x = np.random.multivariate_normal(mean=np.zeros(p), cov=R, size=(n,))
-
+        if standardize:
+            scaler = StandardScaler()
+            scaler.fit(x)
+            x = scaler.transform(x)
+            
         nonzero = sample(p, k)
         Tbeta = np.zeros(p)
 
