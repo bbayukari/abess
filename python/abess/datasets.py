@@ -214,9 +214,11 @@ class make_glm_data:
                 y = np.matmul(x, Tbeta) + sigma * np.random.normal(0, 1, n)
             else:
                 y = np.matmul(x, Tbeta)
-                power = np.mean(np.square(y))
-                npower = power / 10 ** (snr / 10)
-                noise = np.random.randn(len(y)) * np.sqrt(npower)
+                noise=np.random.randn(n) 
+                noise=noise-np.mean(noise)
+                signal_power = np.mean(np.square(y))
+                noise_power = signal_power/np.power(10,(snr/10))              
+                noise=(np.sqrt(noise_power)/np.std(noise))*noise
                 y += noise
 
         elif family == "binomial":
