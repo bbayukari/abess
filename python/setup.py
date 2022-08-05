@@ -7,6 +7,7 @@ import platform
 
 from setuptools import Extension, setup, find_packages
 from setuptools.command.build_ext import build_ext
+from multiprocessing import cpu_count
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 
@@ -127,6 +128,8 @@ class CMakeBuild(build_ext):
             if hasattr(self, "parallel") and self.parallel:
                 # CMake 3.12+ only.
                 build_args += [f"-j{self.parallel}"]
+            else:
+                build_args += [f"-j{cpu_count()}"]
 
         build_temp = os.path.join(self.build_temp, ext.name)
         if not os.path.exists(build_temp):
@@ -134,7 +137,6 @@ class CMakeBuild(build_ext):
 
         subprocess.check_call(["cmake", ext.sourcedir] + cmake_args, cwd=build_temp)
         subprocess.check_call(["cmake", "--build", "."] + build_args, cwd=build_temp)
-
 
 with open(os.path.join(CURRENT_DIR, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
