@@ -162,6 +162,9 @@ PYBIND11_MODULE(pybind_cabess, m) {
     m.def("loss_linear", &linear_model<double>);
     m.def("gradient_linear", &linear_model<dual>);
     m.def("hessian_linear", &linear_model<dual2nd>);
+    m.def("loss_logistic", &logistic_model<double>);
+    m.def("gradient_logistic", &logistic_model<dual>);
+    m.def("hessian_logistic", &logistic_model<dual2nd>);
     m.def("slice_by_sample", &slice_by_sample);
     m.def("slice_by_para", &slice_by_para);
     m.def("deleter", &deleter);

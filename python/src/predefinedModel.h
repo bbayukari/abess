@@ -55,7 +55,6 @@ void deleter(ExternData const& data) { delete data.cast<PredefinedData*>(); }
 
 template <class T>
 T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) noexcept{
-try {
     PredefinedData* data = ex_data.cast<PredefinedData*>();
     T v = T(0.0);
     Eigen::Index m = intercept.size();
@@ -66,10 +65,13 @@ try {
         v += ((data->x * beta - data->y.col(i)).array() + intercept[i]).square().sum();
     }
     return v;
-} catch (const std::exception& e){
-    SPDLOG_ERROR("model wrong!\n{}", e.what());
-    return T(0.0);
 }
+
+template <class T>
+T logistic_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) noexcept{
+    PredefinedData* data = ex_data.cast<PredefinedData*>();
+    Eigen::Array<T, -1, 1> xbeta = (data->x * para).array() + intercept[0];
+    return ((xbeta.exp()+1).log() - (data->y).array()*xbeta).sum();
 }
 
 
