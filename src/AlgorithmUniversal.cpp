@@ -100,3 +100,29 @@ double abessUniversal::effective_number_of_parameter(UniversalData& X, Universal
     }
     return enp;
 }
+
+VectorXi abessUniversal::inital_screening(UniversalData &data, MatrixXd &y, VectorXd &init_para, VectorXd &init_intercept, VectorXi &init_active_set, VectorXi &I,VectorXd &sacrifice, VectorXd &weights, VectorXi &group_index, VectorXi &group_size, int &groups)
+{
+    if (sacrifice.size() == 0) {
+        sacrifice = VectorXd::Zero(groups);
+        for (int i = 0; i < groups; i++) {
+            //sacrifice(i) = "optimal_para".segment(group_index(i), group_size(i)).squaredNorm();
+            VectorXd active_para = init_para.segment(group_index(i), group_size(i));
+            UniversalData active_data = data.slice_by_para(VectorXi::LinSpaced(group_size(i), group_index(i), group_size(i) + group_index(i) - 1));
+            primary_model_fit(active_data, y, weights, active_para, init_intercept, 0, init_active_set, group_index, group_size);
+            sacrifice(i) = active_para.squaredNorm();
+        }
+        // A_init
+        for (int i = 0; i < init_active_set.size(); i++) {
+            sacrifice(init_active_set(i)) = DBL_MAX - 1;
+        }
+        // alway_select
+        for (int i = 0; i < this->always_select.size(); i++) {
+            sacrifice(this->always_select(i)) = DBL_MAX;
+        }
+    }
+    // get Active-set A according to max_k sacrifice
+    Eigen::VectorXi A_new = max_k(sacrifice, this->sparsity_level);
+    SPDLOG_DEBUG("init active set is :\n{}", A_new.transpose());
+    return A_new;
+}
