@@ -35,7 +35,7 @@ class UniversalModel;
 class UniversalData {
     // complete_para: the initial para
     // activate_para: this is a concept of abess algorithm, which is considered to have an impact on the model
-    // inactivate_para: similar to activate_para
+    // inactivate_para: complementary of activate_para
     // effective_para: IMPORTANT! this is a concept of class UniversalData, its meaning depends on the instance of class, 
     //                  and used to simulate the division operation of data sets.
     //                  Its size(effective_size) is match for (slice_by_para ? the size of this->data : this->effective_para_index.size()).
@@ -46,7 +46,7 @@ private:
     // model_size and effective_para_index are useful just when function 'set_by_para' of model isn't setted
     Eigen::Index model_size; // length of complete_para
     VectorXi effective_para_index;// complete_para[effective_para_index[i]] = effective_para[i], ohter location of complete_para is 0
-    Eigen::Index effective_size; // set_by_para ? the size of this->data : length of effective_para_index
+    Eigen::Index effective_size; // slice_by_para ? the size of this->data : length of effective_para_index
     std::shared_ptr<ExternData> data;
 public:
     UniversalData() = default;

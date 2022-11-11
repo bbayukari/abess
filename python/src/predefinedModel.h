@@ -57,12 +57,13 @@ template <class T>
 T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) noexcept{
     PredefinedData* data = ex_data.cast<PredefinedData*>();
     T v = T(0.0);
-    Eigen::Index m = intercept.size();
+    Eigen::Index m = data->y.cols();
+    bool has_intercept = intercept.size() == m;
     Eigen::Index p = data->x.cols();
     Eigen::Map<Matrix<T, -1, 1> const, 0, InnerStride<>> beta(NULL, p, InnerStride<>(m));
     for (Eigen::Index i = 0; i < m; i++) {
         new (&beta) Eigen::Map<Matrix<T, -1, 1> const, 0, InnerStride<>>(para.data() + i, p, InnerStride<>(m));
-        v += ((data->x * beta - data->y.col(i)).array() + intercept[i]).square().sum();
+        v += ((data->x * beta - data->y.col(i)).array() + (has_intercept ? intercept[i] : 0.0)).square().sum();
     }
     return v;
 }
@@ -70,7 +71,7 @@ T linear_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, 
 template <class T>
 T logistic_model(Matrix<T, -1, 1> const& para, Matrix<T, -1, 1> const& intercept, ExternData const& ex_data) noexcept{
     PredefinedData* data = ex_data.cast<PredefinedData*>();
-    Eigen::Array<T, -1, 1> xbeta = (data->x * para).array() + intercept[0];
+    Eigen::Array<T, -1, 1> xbeta = (data->x * para).array() + (intercept.size() > 0 ? intercept[0] : 0.0);
     return ((xbeta.exp()+1).log() - (data->y).array()*xbeta).sum();
 }
 
