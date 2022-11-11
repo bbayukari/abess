@@ -65,5 +65,5 @@ public:
       */
     double effective_number_of_parameter(UniversalData& X, UniversalData& active_data, Eigen::MatrixXd& y, Eigen::VectorXd& weights, Eigen::VectorXd& beta, Eigen::VectorXd& active_para,
         Eigen::VectorXd& intercept) override;
-
+};
 #endif
