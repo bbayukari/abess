@@ -250,6 +250,28 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
     }
 }
 
+void UniversalData::init_para(VectorXd & active_para, VectorXd & intercept, UniversalData const& active_data){
+    if (model->init_para) {
+        VectorXd complete_para = VectorXd::Zero(this->model_size);
+#if EIGEN_MAJOR_VERSION >= 4
+        complete_para(this->effective_para_index) = active_para;
+#else
+        for (Eigen::Index i = 0; i < this->effective_size; i++) {
+            complete_para[this->effective_para_index[i]] = active_para[i];
+        }
+#endif
+        tie(complete_para, intercept) = model->init_para(complete_para, intercept, *active_data.data, this->effective_para_index);
+#if EIGEN_MAJOR_VERSION >= 4
+        active_para = complete_para(this->effective_para_index);
+#else
+        for (Eigen::Index i = 0; i < this->effective_size; i++) {
+            active_para[i] = complete_para[this->effective_para_index[i]];
+        }
+#endif
+    }
+}
+
+
 void UniversalModel::set_loss_of_model(function <double(VectorXd const&, VectorXd const&, ExternData const&)> const& f)
 {
     loss = f;
@@ -295,4 +317,9 @@ void UniversalModel::set_deleter(function<void(ExternData const&)> const& f)
     else {
         deleter = [](ExternData const* p) { delete p; };
     }
+}
+
+void UniversalModel::set_init_para(function <pair<VectorXd, VectorXd>(VectorXd const&, VectorXd const&, ExternData const&, VectorXi const&)> const& f)
+{
+    init_para = f;
 }

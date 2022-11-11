@@ -21,6 +21,7 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
 {
     SPDLOG_DEBUG("optimization\ninit loss: {}\nintercept:{}\ncoefficient:{}", loss0, intercept.transpose(), active_para.transpose());    
     double value = 0.;
+    active_data.init_para(active_para, intercept, active_data);
     unsigned optim_size = active_para.size() + intercept.size();
     VectorXd optim_para(optim_size);
     optim_para.head(intercept.size()) = intercept;

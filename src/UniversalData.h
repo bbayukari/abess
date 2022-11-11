@@ -10,6 +10,7 @@
 #include <pybind11/pybind11.h>
 using ExternData = pybind11::object;
 #include <memory>
+#include <utility>
 #endif
 
 #include <functional>
@@ -23,6 +24,7 @@ using autodiff::dual2nd;
 using VectorXdual = Eigen::Matrix<dual,-1,1>;
 using VectorXdual2nd = Eigen::Matrix<dual2nd,-1,1>;
 using std::function;
+using std::pair;
 
 using optim_function = function<double(const VectorXd&, VectorXd*, void*)>;
 using nlopt_function = double (*)(unsigned n, const double* x, double* grad, void* f_data);
@@ -59,7 +61,8 @@ public:
     nlopt_function get_nlopt_function(double lambda); // create a function which can be optimized by nlopt
     double loss(const VectorXd& effective_para, const VectorXd& intercept, double lambda); // compute the loss with effective_para
     double gradient(const VectorXd& effective_para, const VectorXd& intercept, Eigen::Map<VectorXd>& gradient, double lambda); // compute the gradient of effective_para
-    void hessian(const VectorXd& effective_para, const VectorXd& intercept, VectorXd& gradient, MatrixXd& hessian, Eigen::Index index, Eigen::Index size, double lambda); // compute the hessian of sequence from index to (index+size-1) in effective_para                                                                                                                            
+    void hessian(const VectorXd& effective_para, const VectorXd& intercept, VectorXd& gradient, MatrixXd& hessian, Eigen::Index index, Eigen::Index size, double lambda); // compute the hessian of sequence from index to (index+size-1) in effective_para                
+    void init_para(VectorXd & active_para, VectorXd & intercept, UniversalData const& active_data);  // init para and intercept, default is not change.                                                                                                          
 };
 
 class UniversalModel{
@@ -79,6 +82,7 @@ private:
     function <ExternData(ExternData const& old_data, VectorXi const& target_sample_index)> slice_by_sample;
     function <ExternData(ExternData const& old_data, VectorXi const& target_para_index)> slice_by_para;
     function <void(ExternData const* p)> deleter = [](ExternData const* p) { delete p; };
+    function <pair<VectorXd, VectorXd>(VectorXd & para, VectorXd & intercept, ExternData const& data, VectorXi const& active_para_index)> init_para = nullptr;
     //TODO: constraints
 public:
     // register callback function
@@ -90,5 +94,6 @@ public:
     void set_slice_by_sample(function <ExternData(ExternData const&, VectorXi const&)> const&);
     void set_slice_by_para(function <ExternData(ExternData const&, VectorXi const&)> const&);
     void set_deleter(function <void(ExternData const&)> const&);
+    void set_init_para(function <pair<VectorXd, VectorXd>(VectorXd const&, VectorXd const&, ExternData const&, VectorXi const&)> const&);
 };
 #endif //SRC_UNIVERSALDATA_H

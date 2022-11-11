@@ -151,7 +151,8 @@ PYBIND11_MODULE(pybind_cabess, m) {
         .def("set_hessian_user_defined", &UniversalModel::set_hessian_user_defined)
         .def("set_slice_by_sample", &UniversalModel::set_slice_by_sample)
         .def("set_slice_by_para", &UniversalModel::set_slice_by_para)
-        .def("set_deleter", &UniversalModel::set_deleter);
+        .def("set_deleter", &UniversalModel::set_deleter)
+        .def("set_init_para", &UniversalModel::set_init_para);
     m.def("pywrap_GLM", &pywrap_GLM);
     m.def("pywrap_PCA", &pywrap_PCA);
     m.def("pywrap_RPCA", &pywrap_RPCA);

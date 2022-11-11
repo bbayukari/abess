@@ -544,6 +544,16 @@ class ConvexSparseSolver(BaseEstimator):
         """
         self.model.set_deleter(func)
 
+    def set_init_para(self, func):
+        r"""
+        Register callback function:
+
+        Parameters
+        ----------
+        func : function {}
+        """
+        self.model.set_init_para(func)
+
     def set_data(self, data):
         r""" """
         self.data = data
