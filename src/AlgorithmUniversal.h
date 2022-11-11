@@ -65,22 +65,5 @@ public:
       */
     double effective_number_of_parameter(UniversalData& X, UniversalData& active_data, Eigen::MatrixXd& y, Eigen::VectorXd& weights, Eigen::VectorXd& beta, Eigen::VectorXd& active_para,
         Eigen::VectorXd& intercept) override;
-    
-    /**
-     * initialize the active set A and inactive set I
-     * Only these two paras will be used.
-     * @param data                                                  complete UniversalData 
-     * @param init_para                                             initial values for all parameters
-     * @param init_intercept                                        initial values for intercept
-     * @param init_active_set                                       initial index of groups in active set
-     * @param sacrifice                                             if it doesn't exist, sacrifice_i = [argmin_{x_i} L(x_1,…,x_p)]^2; then select the group with the top $this->sparsity_level sacrifice_i
-     * @param group_index                                           the index in para of all groups
-     * @param group_size                                            the length of all groups
-     * @param groups                                                the number of groups
-     * 
-     * @return the selected index of groups in active set as init active set
-     */
-    Eigen::VectorXi inital_screening(UniversalData &data, Eigen::MatrixXd &y, Eigen::VectorXd &init_para, Eigen::VectorXd &init_intercept, Eigen::VectorXi &init_active_set, Eigen::VectorXi &I,Eigen::VectorXd &sacrifice, Eigen::VectorXd &weights, Eigen::VectorXi &group_index, Eigen::VectorXi &group_size, int &groups) override;
-};
 
 #endif
