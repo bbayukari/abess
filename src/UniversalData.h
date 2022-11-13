@@ -60,7 +60,7 @@ public:
     double loss(const VectorXd& effective_para, const VectorXd& intercept, double lambda); // compute the loss with effective_para
     double gradient(const VectorXd& effective_para, const VectorXd& intercept, Eigen::Map<VectorXd>& gradient, double lambda); // compute the gradient of effective_para
     void hessian(const VectorXd& effective_para, const VectorXd& intercept, VectorXd& gradient, MatrixXd& hessian, Eigen::Index index, Eigen::Index size, double lambda); // compute the hessian of sequence from index to (index+size-1) in effective_para                
-    void init_para(VectorXd & active_para, VectorXd & intercept, UniversalData const& active_data);  // init para and intercept, default is not change.                                                                                                          
+    void init_para(VectorXd & active_para, VectorXd & intercept);  // init para and intercept, default is not change.                                                                                                          
 };
 
 class UniversalModel{

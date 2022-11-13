@@ -22,14 +22,7 @@ UniversalData UniversalData::slice_by_para(const VectorXi& target_para_index)
         tem.data = shared_ptr<ExternData>(new ExternData(model->slice_by_para(*data, target_para_index)), model->deleter);
     }
     else {
-#if EIGEN_MAJOR_VERSION >= 4
-        tem.effective_para_index = this->effective_para_index(target_para_index);
-#else
-        tem.effective_para_index = VectorXi(target_para_index.size());
-        for (Eigen::Index i = 0; i < target_para_index.size(); i++) {
-            tem.effective_para_index[i] = this->effective_para_index[target_para_index[i]];
-        }
-#endif
+        segment_Eigen(this->effective_para_index, tem.effective_para_index, target_para_index);
     }
     tem.effective_size = target_para_index.size();
 
@@ -83,13 +76,7 @@ double UniversalData::loss(const VectorXd& effective_para, const VectorXd& inter
     }
     else {
         VectorXd complete_para = VectorXd::Zero(this->model_size);
-#if EIGEN_MAJOR_VERSION >= 4
-        complete_para(this->effective_para_index) = effective_para;
-#else
-        for (Eigen::Index i = 0; i < this->effective_size; i++) {
-            complete_para[this->effective_para_index[i]] = effective_para[i];
-        }
-#endif
+        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
         return model->loss(complete_para, intercept, *this->data) + lambda * effective_para.squaredNorm();
     }
 }
@@ -126,13 +113,7 @@ double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& i
     }
     else {
         VectorXd complete_para = VectorXd::Zero(this->model_size);
-#if EIGEN_MAJOR_VERSION >= 4
-        complete_para(this->effective_para_index) = effective_para;
-#else
-        for (Eigen::Index i = 0; i < this->effective_size; i++) {
-            complete_para[this->effective_para_index[i]] = effective_para[i];
-        }
-#endif
+        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
         if (model->gradient_user_defined) {
             gradient = model->gradient_user_defined(complete_para, intercept, *this->data, this->effective_para_index);
             value = model->loss(complete_para, intercept, *this->data);
@@ -143,13 +124,7 @@ double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& i
             VectorXdual intercept_dual = intercept;
             auto func = [this, &complete_para](VectorXdual const& compute_para, VectorXdual const& intercept) {
                 VectorXdual para = complete_para;
-#if EIGEN_MAJOR_VERSION >= 4
-                para(this->effective_para_index) = compute_para;
-#else
-                for (Eigen::Index i = 0; i < compute_para.size(); i++) {
-                    para[this->effective_para_index[i]] = compute_para[i];
-                }
-#endif
+                assignment_Eigen(para, compute_para, this->effective_para_index);
                 return this->model->gradient_autodiff(para, intercept, *this->data);
             };
             gradient.head(intercept.size()) = autodiff::gradient(func, wrt(intercept_dual), at(effective_para_dual, intercept_dual), v);
@@ -185,25 +160,13 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
     else {
         compute_para_index = this->effective_para_index.segment(index, size);
         complete_para = VectorXd::Zero(this->model_size);
-#if EIGEN_MAJOR_VERSION >= 4
-        complete_para(this->effective_para_index) = effective_para;
-#else
-        for (Eigen::Index i = 0; i < this->effective_size; i++) {
-            complete_para[this->effective_para_index[i]] = effective_para[i];
-        }
-#endif
+        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
         para_ptr = &complete_para;
     }
 
     if (model->hessian_user_defined) {
         gradient = model->gradient_user_defined(*para_ptr, intercept, *this->data, compute_para_index).tail(size);
-        hessian = model->hessian_user_defined(*para_ptr, intercept, *this->data, compute_para_index);
-#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
-        if (!hessian.isApprox(hessian.transpose())){
-            SPDLOG_ERROR("user defined hessian function return a non-symmetric matrix:\n{}", hessian);
-            hessian = (hessian + hessian.transpose()) / 2.0;
-        }
-#endif        
+        hessian = model->hessian_user_defined(*para_ptr, intercept, *this->data, compute_para_index);      
     }
     else { // autodiff
         dual2nd v;
@@ -212,16 +175,7 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
         VectorXdual2nd intercept_dual = intercept;
         hessian = autodiff::hessian([this, para_ptr, &compute_para_index](VectorXdual2nd const& compute_para, VectorXdual2nd const& intercept_dual) {
             VectorXdual2nd para = *para_ptr;
-            for (Eigen::Index i = 0; i < compute_para_index.size(); i++) {
-                para[compute_para_index[i]] = compute_para[i];
-            }
-#if EIGEN_MAJOR_VERSION >= 4
-            para(compute_para_index) = compute_para;
-#else
-            for (Eigen::Index i = 0; i < compute_para_index.size(); i++) {
-                para[compute_para_index[i]] = compute_para[i];
-            }
-#endif
+            assignment_Eigen(para, compute_para, compute_para_index);
             return this->model->hessian_autodiff(para, intercept_dual, *this->data);
             }, wrt(compute_para), at(compute_para, intercept_dual), v, g);
         for (Eigen::Index i = 0; i < size; i++) {
@@ -235,24 +189,13 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
     }
 }
 
-void UniversalData::init_para(VectorXd & active_para, VectorXd & intercept, UniversalData const& active_data){
+void UniversalData::init_para(VectorXd & active_para, VectorXd & intercept){
     if (model->init_para) {
         VectorXd complete_para = VectorXd::Zero(this->model_size);
-#if EIGEN_MAJOR_VERSION >= 4
-        complete_para(this->effective_para_index) = active_para;
-#else
-        for (Eigen::Index i = 0; i < this->effective_size; i++) {
-            complete_para[this->effective_para_index[i]] = active_para[i];
-        }
-#endif
-        tie(complete_para, intercept) = model->init_para(complete_para, intercept, *active_data.data, this->effective_para_index);
-#if EIGEN_MAJOR_VERSION >= 4
-        active_para = complete_para(this->effective_para_index);
-#else
-        for (Eigen::Index i = 0; i < this->effective_size; i++) {
-            active_para[i] = complete_para[this->effective_para_index[i]];
-        }
-#endif
+        assignment_Eigen(complete_para, active_para, this->effective_para_index);
+        tie(complete_para, intercept) = model->init_para(complete_para, intercept, *this->data, this->effective_para_index);
+        segment_Eigen(complete_para, active_para, this->effective_para_index);
+
     }
 }
 
