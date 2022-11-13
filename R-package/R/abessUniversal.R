@@ -207,20 +207,20 @@ abessUniversal <- function(
   }
   result[["tune.value"]] <- result[["tune.value"]][, 1]
 
-  ############ restore intercept ############
+  ############ restore aux_para ############
   result[["best.size"]] <- s_list[which.min(result[["tune.value"]])]
-  names(result)[which(names(result) == "coef0_all")] <- "intercept"
+  names(result)[which(names(result) == "coef0_all")] <- "aux_para"
   if (family %in% MULTIVARIATE_RESPONSE) {
     if (family %in% c("multinomial", "ordinal")) {
-      result[["intercept"]] <- lapply(result[["intercept"]], function(x) {
+      result[["aux_para"]] <- lapply(result[["aux_para"]], function(x) {
         x <- x[-y_dim]
       })
     }
   } else {
-    result[["intercept"]] <- as.vector(result[["intercept"]])
+    result[["aux_para"]] <- as.vector(result[["aux_para"]])
   }
 
-  ############ restore intercept ############
+  ############ restore aux_para ############
   names(result)[which(names(result) == "beta_all")] <- "beta"
   if (multi_y) {
     if (screening) {
@@ -265,4 +265,3 @@ abessUniversal <- function(
   set.seed(NULL)
   return(result)
 }
-

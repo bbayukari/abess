@@ -539,7 +539,7 @@ List abessRPCA_API(Eigen::MatrixXd x, int n, int p, int max_iter, int exchange_n
 #ifdef R_BUILD
 
 #else
-List abessUniversal_API(ExternData data, UniversalModel model, int model_size, int sample_size, int intercept_size, int max_iter, int exchange_num, int path_type,
+List abessUniversal_API(ExternData data, UniversalModel model, int model_size, int sample_size, int aux_para_size, int max_iter, int exchange_num, int path_type,
     bool is_warm_start, int ic_type, double ic_coef, int Kfold, Eigen::VectorXi sequence, Eigen::VectorXd lambda_seq, int s_min, int s_max,
     int screening_size, Eigen::VectorXi g_index, Eigen::VectorXi always_select, int thread, int splicing_type, int sub_search,
     Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init)
@@ -562,7 +562,7 @@ List abessUniversal_API(ExternData data, UniversalModel model, int model_size, i
 
 #endif // R_BUILD
     UniversalData x(model_size, sample_size, data, &model); // UniversalData is just like a matrix.
-    MatrixXd y = MatrixXd::Zero(sample_size, intercept_size); // Invalid variable, create it just for interface compatibility
+    MatrixXd y = MatrixXd::Zero(sample_size, aux_para_size); // Invalid variable, create it just for interface compatibility
     int normalize_type = 0; // offer normalized data if need
     VectorXd weight = VectorXd::Ones(sample_size);  // only can be implemented inside the model
     Parameters parameters(sequence, lambda_seq, s_min, s_max);
@@ -584,4 +584,3 @@ List abessUniversal_API(ExternData data, UniversalModel model, int model_size, i
 
     return out_result;
 }
-

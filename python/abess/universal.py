@@ -13,9 +13,9 @@ class ConvexSparseSolver(BaseEstimator):
     ----------
     model_size : int
         The total number of variables which need be selected, denoted as p.
-    intercept_size : int, optional, default=0
+    aux_para_size : int, optional, default=0
         The total number of variables which need not be selected.
-        This is for the convenience of some models, like the intercept
+        This is for the convenience of some models, like the aux_para
         of linear regression.
     sample_size : int, optional, default=1
         sample size, denoted as n.
@@ -98,8 +98,8 @@ class ConvexSparseSolver(BaseEstimator):
     ----------
     coef_ : array-like, shape(p_features, )
         Estimated coefficients for the best subset selection problem.
-    intercept_ : array-like, shape(M_responses,)
-        The intercept in the model.
+    aux_para_ : array-like, shape(M_responses,)
+        The aux_para in the model.
     ic_ : float
         If cv=1, it stores the score under chosen information criterion.
     test_loss_ : float
@@ -122,7 +122,7 @@ class ConvexSparseSolver(BaseEstimator):
 
     # attributes
     coef_ = None
-    intercept_ = None
+    aux_para_ = None
     ic_ = 0
     train_loss_ = 0
     test_loss_ = 0
@@ -131,7 +131,7 @@ class ConvexSparseSolver(BaseEstimator):
         self,
         model_size,
         support_size=None,
-        intercept_size=0,
+        aux_para_size=0,
         sample_size=1,
         max_iter=20,
         max_exchange_num=5,
@@ -154,7 +154,7 @@ class ConvexSparseSolver(BaseEstimator):
     ):
         self.model = UniversalModel()
         self.model_size = model_size
-        self.intercept_size = intercept_size
+        self.aux_para_size = aux_para_size
         self.sample_size = sample_size
         self.max_iter = max_iter
         self.max_exchange_num = max_exchange_num
@@ -199,9 +199,9 @@ class ConvexSparseSolver(BaseEstimator):
         n = self.sample_size
         check_positive_integer(n, "sample_size")
 
-        # intercept_size
-        m = self.intercept_size
-        check_non_negative_integer(m, "intercept_size")
+        # aux_para_size
+        m = self.aux_para_size
+        check_non_negative_integer(m, "aux_para_size")
 
         # max_iter
         check_non_negative_integer(self.max_iter, "max_iter")
@@ -414,7 +414,7 @@ class ConvexSparseSolver(BaseEstimator):
         )
 
         self.coef_ = result[0]
-        self.intercept_ = result[1].squeeze()
+        self.aux_para_ = result[1].squeeze()
         self.train_loss_ = result[2]
         self.test_loss_ = result[3]
         self.ic_ = result[4]
@@ -425,7 +425,7 @@ class ConvexSparseSolver(BaseEstimator):
 
         Parameters
         ----------
-        func : function {'para': array-like, 'intercept': array-like, 'data': ExternData, 'return': float}
+        func : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
         """
         self.model.set_loss_of_model(loss)
         self.model.set_gradient_autodiff(gradient)
@@ -437,7 +437,7 @@ class ConvexSparseSolver(BaseEstimator):
 
         Parameters
         ----------
-        loss : function {'para': array-like, 'intercept': array-like, 'data': ExternData, 'return': float}
+        loss : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
         """
         from jax import jacfwd, jacrev
         from jax import grad as jax_grad
@@ -452,69 +452,55 @@ class ConvexSparseSolver(BaseEstimator):
 
         # the function for differential
         @jit
-        def func_(para_compute, intercept, para, ind, data):
+        def func_(para_compute, aux_para, para, ind, data):
             para_complete = para.at[ind].set(para_compute)
-            return loss(para_complete, intercept, data)
+            return loss(para_complete, aux_para, data)
 
         @jit
-        def grad_(para, intercept, data, compute_para_index):
+        def grad_(para, aux_para, data, compute_para_index):
             para_j = jnp.array(para)
-            intercept_j = jnp.array(intercept)
+            aux_para_j = jnp.array(aux_para)
             para_compute_j = jnp.array(para[compute_para_index])
             return np.array(
                 jnp.append(
                     *jax_grad(func_, (1, 0))(
-                        para_compute_j, intercept_j, para_j, compute_para_index, data
+                        para_compute_j, aux_para_j, para_j, compute_para_index, data
                     )
                 )
             )
 
         @jit
-        def hessian_(para, intercept, data, compute_para_index):
+        def hessian_(para, aux_para, data, compute_para_index):
             para_j = jnp.array(para)
-            intercept_j = jnp.array(intercept)
+            aux_para_j = jnp.array(aux_para)
             para_compute_j = jnp.array(para[compute_para_index])
             return np.array(
                 jacfwd(jacrev(func_))(
-                    para_compute_j, intercept_j, para_j, compute_para_index, data
+                    para_compute_j, aux_para_j, para_j, compute_para_index, data
                 )
             )
 
         self.model.set_loss_of_model(loss)
         self.model.set_gradient_user_defined(grad_)
         self.model.set_hessian_user_defined(hessian_)
-
-    def set_loss(self, func):
+    
+    # must use name
+    def set_model_user_defined(self, loss=None, gradient=None, hessian=None):
         r"""
         Register callback function: loss of model.
 
         Parameters
         ----------
-        func : function {'para': array-like, 'intercept': array-like, 'data': ExternData, 'return': float}
+        loss : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
         """
-        self.model.set_loss_of_model(func)
+        if loss is not None:
+            self.model.set_loss_of_model(loss)
+        if gradient is not None:
+            self.model.set_gradient_user_defined(gradient)
+        if hessian is not None:
+            self.model.set_hessian_user_defined(hessian)
 
-    def set_gradient(self, func):
-        r"""
-        Register callback function:
-
-        Parameters
-        ----------
-        func : function {}
-        """
-        self.model.set_gradient_user_defined(func)
-
-    def set_hessian(self, func):
-        r"""
-        Register callback function:
-
-        Parameters
-        ----------
-        func : function {}
-        """
-        self.model.set_hessian_user_defined(func)
-
-    def set_slice_by_sample(self, func):
+    def set_slice_by_sample(self, func, deleter):
         r"""
         Register callback function:
 
@@ -523,25 +509,6 @@ class ConvexSparseSolver(BaseEstimator):
         func : function {}
         """
         self.model.set_slice_by_sample(func)
-
-    def set_slice_by_para(self, func):
-        r"""
-        Register callback function:
-
-        Parameters
-        ----------
-        func : function {}
-        """
-        self.model.set_slice_by_para(func)
-
-    def set_deleter(self, func):
-        r"""
-        Register callback function:
-
-        Parameters
-        ----------
-        func : function {}
-        """
         self.model.set_deleter(func)
 
     def set_init_para(self, func):

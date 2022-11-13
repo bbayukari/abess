@@ -34,16 +34,6 @@ struct PredefinedData {
 };
 int PredefinedData::data_num = 0;
 
-ExternData slice_by_para(ExternData const& old_data, VectorXi const& target_para_index) {
-    PredefinedData* data = old_data.cast<PredefinedData*>();
-    Eigen::Index m = data->y.cols();
-    std::vector<int> ind;
-    for (Eigen::Index i = 0; i < target_para_index.size(); i += m) {
-        ind.push_back(target_para_index[i] / m);
-    }
-    PredefinedData* new_data = new PredefinedData(data->x(Eigen::all, ind),data->y);
-    return pybind11::cast(new_data);
-}
 
 ExternData slice_by_sample(ExternData const& old_data, VectorXi const& target_sample_index) {  
     PredefinedData* data = old_data.cast<PredefinedData*>();

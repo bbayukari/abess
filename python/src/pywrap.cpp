@@ -121,25 +121,25 @@ std::tuple<Eigen::VectorXd, double, double, double, double> pywrap_RPCA(
 }
 
 std::tuple<Eigen::VectorXd, Eigen::VectorXd, double, double, double>
-pywrap_Universal(ExternData data, UniversalModel model, int model_size, int sample_size,int intercept_size, int max_iter,
+pywrap_Universal(ExternData data, UniversalModel model, int model_size, int sample_size,int aux_para_size, int max_iter,
     int exchange_num, int path_type, bool is_warm_start, int ic_type, double ic_coef, int Kfold, Eigen::VectorXi sequence, 
     Eigen::VectorXd lambda_seq, int s_min, int s_max, int screening_size, Eigen::VectorXi g_index, Eigen::VectorXi always_select, 
     int thread, int splicing_type, int sub_search, Eigen::VectorXi cv_fold_id, Eigen::VectorXi A_init)
 {
-    List mylist = abessUniversal_API(data, model, model_size, sample_size, intercept_size, max_iter, exchange_num,
+    List mylist = abessUniversal_API(data, model, model_size, sample_size, aux_para_size, max_iter, exchange_num,
         path_type, is_warm_start, ic_type, ic_coef, Kfold, sequence, lambda_seq, s_min, s_max,
         screening_size, g_index, always_select, thread, splicing_type, sub_search, cv_fold_id, A_init);
     Eigen::VectorXd beta;
-    Eigen::VectorXd intercept;
+    Eigen::VectorXd aux_para;
     double train_loss = 0;
     double test_loss = 0;
     double ic = 0;
     mylist.get_value_by_name("beta", beta);
-    mylist.get_value_by_name("coef0", intercept);
+    mylist.get_value_by_name("coef0", aux_para);
     mylist.get_value_by_name("train_loss", train_loss);
     mylist.get_value_by_name("test_loss", test_loss);
     mylist.get_value_by_name("ic", ic);
-    return std::make_tuple(beta, intercept, train_loss, test_loss, ic);
+    return std::make_tuple(beta, aux_para, train_loss, test_loss, ic);
 }
 
 PYBIND11_MODULE(pybind_cabess, m) {
@@ -150,7 +150,6 @@ PYBIND11_MODULE(pybind_cabess, m) {
         .def("set_gradient_user_defined", &UniversalModel::set_gradient_user_defined)
         .def("set_hessian_user_defined", &UniversalModel::set_hessian_user_defined)
         .def("set_slice_by_sample", &UniversalModel::set_slice_by_sample)
-        .def("set_slice_by_para", &UniversalModel::set_slice_by_para)
         .def("set_deleter", &UniversalModel::set_deleter)
         .def("set_init_para", &UniversalModel::set_init_para);
     m.def("pywrap_GLM", &pywrap_GLM);
@@ -167,6 +166,5 @@ PYBIND11_MODULE(pybind_cabess, m) {
     m.def("gradient_logistic", &logistic_model<dual>);
     m.def("hessian_logistic", &logistic_model<dual2nd>);
     m.def("slice_by_sample", &slice_by_sample);
-    m.def("slice_by_para", &slice_by_para);
     m.def("deleter", &deleter);
 }

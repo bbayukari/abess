@@ -10,21 +10,21 @@
 using namespace std;
 using namespace Eigen;
 
-double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, VectorXi& A,
+double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& aux_para, VectorXi& A,
     VectorXi& g_index, VectorXi& g_size, double lambda) 
 {
-    return active_data.loss(active_para, intercept, lambda);
+    return active_data.loss(active_para, aux_para, lambda);
 }
 
-bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& intercept, double loss0,
+bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& aux_para, double loss0,
     VectorXi& A, VectorXi& g_index, VectorXi& g_size) 
 {
-    SPDLOG_DEBUG("optimization\ninit loss: {}\nintercept:{}\ncoefficient:{}", loss0, intercept.transpose(), active_para.transpose());    
+    SPDLOG_DEBUG("optimization\ninit loss: {}\naux_para:{}\ncoefficient:{}", loss0, aux_para.transpose(), active_para.transpose());    
     double value = 0.;
-    active_data.init_para(active_para, intercept);
-    unsigned optim_size = active_para.size() + intercept.size();
+    active_data.init_para(active_para, aux_para);
+    unsigned optim_size = active_para.size() + aux_para.size();
     VectorXd optim_para(optim_size);
-    optim_para.head(intercept.size()) = intercept;
+    optim_para.head(aux_para.size()) = aux_para;
     optim_para.tail(active_para.size()) = active_para;
     nlopt_function f = active_data.get_nlopt_function(this->lambda_level);
 
@@ -37,18 +37,18 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
     if(!success){
         SPDLOG_WARN("failed to optimize, state: {} ", nlopt_result_to_string(result));
     }
-    intercept = optim_para.head(intercept.size());
+    aux_para = optim_para.head(aux_para.size());
     active_para = optim_para.tail(active_para.size());
-    SPDLOG_DEBUG("optimization\nfinal loss: {}\nintercept:{}\ncoefficient:{}", value, intercept.transpose(), active_para.transpose());
+    SPDLOG_DEBUG("optimization\nfinal loss: {}\naux_para:{}\ncoefficient:{}", value, aux_para.transpose(), active_para.transpose());
     return success;
 }
 
-void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd& y, VectorXd& para, VectorXd& beta_A, VectorXd& intercept, VectorXi& A, VectorXi& I, VectorXd& weights, VectorXi& g_index, VectorXi& g_size, int g_num, VectorXi& A_ind, VectorXd& sacrifice, VectorXi& U, VectorXi& U_ind, int num)
+void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd& y, VectorXd& para, VectorXd& beta_A, VectorXd& aux_para, VectorXi& A, VectorXi& I, VectorXd& weights, VectorXi& g_index, VectorXi& g_size, int g_num, VectorXi& A_ind, VectorXd& sacrifice, VectorXi& U, VectorXi& U_ind, int num)
 {
     for (int i = 0; i < A.size(); i++) {
         VectorXd gradient_group(g_size(A[i]));
         MatrixXd hessian_group(g_size(A[i]), g_size(A[i]));
-        data.hessian(para, intercept, gradient_group, hessian_group, g_index(A[i]), g_size(A[i]), this->lambda_level);
+        data.hessian(para, aux_para, gradient_group, hessian_group, g_index(A[i]), g_size(A[i]), this->lambda_level);
         if (g_size(A[i]) == 1) { // optimize for frequent degradation situations
             sacrifice(A[i]) = para(g_index(A[i])) * para(g_index(A[i])) * hessian_group(0, 0);
         }
@@ -60,7 +60,7 @@ void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd&
     for (int i = 0; i < I.size(); i++) {
         VectorXd gradient_group(g_size(I[i]));
         MatrixXd hessian_group(g_size(I[i]), g_size(I[i]));
-        data.hessian(para, intercept, gradient_group, hessian_group, g_index(I[i]), g_size(I[i]), this->lambda_level);
+        data.hessian(para, aux_para, gradient_group, hessian_group, g_index(I[i]), g_size(I[i]), this->lambda_level);
         if (g_size(I[i]) == 1) { // Optimize for degradation situations, it often happens
             if (hessian_group(0, 0) < this->enough_small) {
                 SPDLOG_ERROR("hessian is not positive definite:\n{}", hessian_group(0, 0));
@@ -85,7 +85,7 @@ void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd&
     }
 }
 
-double abessUniversal::effective_number_of_parameter(UniversalData& X, UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& beta, VectorXd& active_para, VectorXd& intercept)
+double abessUniversal::effective_number_of_parameter(UniversalData& X, UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& beta, VectorXd& active_para, VectorXd& aux_para)
 {
     if (this->lambda_level == 0.) return active_data.cols();
 
@@ -93,7 +93,7 @@ double abessUniversal::effective_number_of_parameter(UniversalData& X, Universal
 
     MatrixXd hessian(active_data.cols(), active_data.cols());
     VectorXd g;
-    active_data.hessian(active_para, intercept, g, hessian, 0, active_data.cols(), this->lambda_level);
+    active_data.hessian(active_para, aux_para, g, hessian, 0, active_data.cols(), this->lambda_level);
     SelfAdjointEigenSolver<MatrixXd> adjoint_eigen_solver(hessian, EigenvaluesOnly);
     double enp = 0.;
     for (int i = 0; i < adjoint_eigen_solver.eigenvalues().size(); i++) {

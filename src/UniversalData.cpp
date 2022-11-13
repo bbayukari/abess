@@ -9,23 +9,15 @@ using Eigen::Matrix;
 UniversalData::UniversalData(Eigen::Index model_size, Eigen::Index sample_size, ExternData& data, UniversalModel* model)
     : model(model), sample_size(sample_size), model_size(model_size), effective_size(model_size)
 {
-    if (!model->slice_by_para) {
-        this->effective_para_index = VectorXi::LinSpaced(model_size, 0, model_size - 1);
-    }
+    this->effective_para_index = VectorXi::LinSpaced(model_size, 0, model_size - 1);
     this->data = shared_ptr<ExternData>(new ExternData(data));
 }
 
 UniversalData UniversalData::slice_by_para(const VectorXi& target_para_index)
 {
     UniversalData tem(*this);
-    if (model->slice_by_para) {
-        tem.data = shared_ptr<ExternData>(new ExternData(model->slice_by_para(*data, target_para_index)), model->deleter);
-    }
-    else {
-        segment_Eigen(this->effective_para_index, tem.effective_para_index, target_para_index);
-    }
+    segment_Eigen(this->effective_para_index, tem.effective_para_index, target_para_index);
     tem.effective_size = target_para_index.size();
-
     return tem;
 }
 
@@ -52,86 +44,50 @@ nlopt_function UniversalData::get_nlopt_function(double lambda)
     this->lambda = lambda;
     return [](unsigned n, const double* x, double* grad, void* f_data) {
         UniversalData* data = static_cast<UniversalData*>(f_data);
-        Map<VectorXd const> intercept(x, n - data->effective_size);
+        Map<VectorXd const> aux_para(x, n - data->effective_size);
         Map<VectorXd const> effective_para(x + n - data->effective_size, data->effective_size);
         if (grad) { // not use operator new
             Map<VectorXd> gradient(grad, n);
-            return data->gradient(effective_para, intercept, gradient, data->lambda);
+            return data->gradient(effective_para, aux_para, gradient, data->lambda);
         }
         else {
-            return data->loss(effective_para, intercept, data->lambda);
+            return data->loss(effective_para, aux_para, data->lambda);
         }
     };
 }
 
-double UniversalData::loss(const VectorXd& effective_para, const VectorXd& intercept, double lambda)
+double UniversalData::loss(const VectorXd& effective_para, const VectorXd& aux_para, double lambda)
 {
-    if(effective_para.size() != this->effective_size){
-        SPDLOG_ERROR("the size of the effective parameters is different!");
-        return DBL_MAX;
-    }
-
-    if (model->slice_by_para) {
-        return model->loss(effective_para, intercept, *this->data) + lambda * effective_para.squaredNorm();
-    }
-    else {
-        VectorXd complete_para = VectorXd::Zero(this->model_size);
-        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
-        return model->loss(complete_para, intercept, *this->data) + lambda * effective_para.squaredNorm();
-    }
+    VectorXd complete_para = VectorXd::Zero(this->model_size);
+    assignment_Eigen(complete_para, effective_para, this->effective_para_index);
+    return model->loss(complete_para, aux_para, *this->data) + lambda * effective_para.squaredNorm();
+    
 }
 
-double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& intercept, Map<VectorXd>& gradient, double lambda)
+double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& aux_para, Map<VectorXd>& gradient, double lambda)
 {
-    if(effective_para.size() != this->effective_size){
-        SPDLOG_ERROR("the size of the effective parameters is different!");
-        return DBL_MAX;        
-    }
-    if(gradient.size() != this->effective_size + intercept.size()){
-        SPDLOG_ERROR("Gradient Vector Size Wrong, the size of gradient is {}, effective_size is {}, intercept_size is {}", gradient.size(), effective_para.size(), intercept.size());
-        return DBL_MAX;  
-    }
-
     double value = 0.0;
+    VectorXd complete_para = VectorXd::Zero(this->model_size);
+    assignment_Eigen(complete_para, effective_para, this->effective_para_index);
 
-    if (model->slice_by_para) {
-        if (model->gradient_user_defined) {
-            gradient = model->gradient_user_defined(effective_para, intercept, *this->data, VectorXi::LinSpaced(effective_size, 0, effective_size - 1));
-            value = model->loss(effective_para, intercept, *this->data);
-        }
-        else {
-            dual v;
-            VectorXdual effective_para_dual = effective_para;
-            VectorXdual intercept_dual = intercept;
-            auto func = [this](VectorXdual const& compute_para, VectorXdual const& intercept) {
-                return this->model->gradient_autodiff(compute_para, intercept, *this->data);
-            };
-            gradient.head(intercept.size()) = autodiff::gradient(func, wrt(intercept_dual), at(effective_para_dual, intercept_dual), v);
-            gradient.tail(effective_size) = autodiff::gradient(func, wrt(effective_para_dual), at(effective_para_dual, intercept_dual), v);
-            value = val(v);
-        }
+    if (model->gradient_user_defined) {
+        gradient = model->gradient_user_defined(complete_para, aux_para, *this->data, this->effective_para_index);
+        value = model->loss(complete_para, aux_para, *this->data);
     }
-    else {
-        VectorXd complete_para = VectorXd::Zero(this->model_size);
-        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
-        if (model->gradient_user_defined) {
-            gradient = model->gradient_user_defined(complete_para, intercept, *this->data, this->effective_para_index);
-            value = model->loss(complete_para, intercept, *this->data);
-        }
-        else {
-            dual v;
-            VectorXdual effective_para_dual = effective_para;
-            VectorXdual intercept_dual = intercept;
-            auto func = [this, &complete_para](VectorXdual const& compute_para, VectorXdual const& intercept) {
-                VectorXdual para = complete_para;
-                assignment_Eigen(para, compute_para, this->effective_para_index);
-                return this->model->gradient_autodiff(para, intercept, *this->data);
-            };
-            gradient.head(intercept.size()) = autodiff::gradient(func, wrt(intercept_dual), at(effective_para_dual, intercept_dual), v);
-            gradient.tail(effective_size) = autodiff::gradient(func, wrt(effective_para_dual), at(effective_para_dual, intercept_dual), v);
-            value = val(v);
-        }
+    else { // autodiff
+        dual v;
+        VectorXdual effective_para_dual = effective_para;
+        VectorXdual aux_para_dual = aux_para;
+        auto func = [this, &complete_para](VectorXdual const& compute_para, VectorXdual const& aux_para) {
+            VectorXdual para = complete_para;
+            assignment_Eigen(para, compute_para, this->effective_para_index);
+            return this->model->gradient_autodiff(para, aux_para, *this->data);
+        };
+        gradient.head(aux_para.size()) = autodiff::gradient(func, wrt(aux_para_dual), at(effective_para_dual, aux_para_dual), v);
+        gradient.tail(effective_size) = autodiff::gradient(func, wrt(effective_para_dual), at(effective_para_dual, aux_para_dual), v);
+        value = val(v);
     }
+    
    
     gradient.tail(effective_size) += 2 * lambda * effective_para;
     return value + lambda * effective_para.squaredNorm();
@@ -139,7 +95,7 @@ double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& i
 
 
 
-void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& intercept, VectorXd& gradient, MatrixXd& hessian, Eigen::Index index, Eigen::Index size, double lambda)
+void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& aux_para, VectorXd& gradient, MatrixXd& hessian, Eigen::Index index, Eigen::Index size, double lambda)
 {
     gradient.resize(size);
     hessian.resize(size, size);
@@ -153,31 +109,25 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
     VectorXd const* para_ptr;
     VectorXd complete_para;
 
-    if (model->slice_by_para) {
-        compute_para_index = VectorXi::LinSpaced(size, index, size + index - 1);
-        para_ptr = &effective_para;
-    }
-    else {
-        compute_para_index = this->effective_para_index.segment(index, size);
-        complete_para = VectorXd::Zero(this->model_size);
-        assignment_Eigen(complete_para, effective_para, this->effective_para_index);
-        para_ptr = &complete_para;
-    }
-
+    compute_para_index = this->effective_para_index.segment(index, size);
+    complete_para = VectorXd::Zero(this->model_size);
+    assignment_Eigen(complete_para, effective_para, this->effective_para_index);
+    para_ptr = &complete_para;
+    
     if (model->hessian_user_defined) {
-        gradient = model->gradient_user_defined(*para_ptr, intercept, *this->data, compute_para_index).tail(size);
-        hessian = model->hessian_user_defined(*para_ptr, intercept, *this->data, compute_para_index);      
+        gradient = model->gradient_user_defined(*para_ptr, aux_para, *this->data, compute_para_index).tail(size);
+        hessian = model->hessian_user_defined(*para_ptr, aux_para, *this->data, compute_para_index);      
     }
     else { // autodiff
         dual2nd v;
         VectorXdual2nd g;
         VectorXdual2nd compute_para = effective_para.segment(index, size);
-        VectorXdual2nd intercept_dual = intercept;
-        hessian = autodiff::hessian([this, para_ptr, &compute_para_index](VectorXdual2nd const& compute_para, VectorXdual2nd const& intercept_dual) {
+        VectorXdual2nd aux_para_dual = aux_para;
+        hessian = autodiff::hessian([this, para_ptr, &compute_para_index](VectorXdual2nd const& compute_para, VectorXdual2nd const& aux_para_dual) {
             VectorXdual2nd para = *para_ptr;
             assignment_Eigen(para, compute_para, compute_para_index);
-            return this->model->hessian_autodiff(para, intercept_dual, *this->data);
-            }, wrt(compute_para), at(compute_para, intercept_dual), v, g);
+            return this->model->hessian_autodiff(para, aux_para_dual, *this->data);
+            }, wrt(compute_para), at(compute_para, aux_para_dual), v, g);
         for (Eigen::Index i = 0; i < size; i++) {
             gradient[i] = val(g[i]);
         }
@@ -189,11 +139,11 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& inte
     }
 }
 
-void UniversalData::init_para(VectorXd & active_para, VectorXd & intercept){
+void UniversalData::init_para(VectorXd & active_para, VectorXd & aux_para){
     if (model->init_para) {
         VectorXd complete_para = VectorXd::Zero(this->model_size);
         assignment_Eigen(complete_para, active_para, this->effective_para_index);
-        tie(complete_para, intercept) = model->init_para(complete_para, intercept, *this->data, this->effective_para_index);
+        tie(complete_para, aux_para) = model->init_para(complete_para, aux_para, *this->data, this->effective_para_index);
         segment_Eigen(complete_para, active_para, this->effective_para_index);
 
     }
@@ -230,11 +180,6 @@ void UniversalModel::set_hessian_user_defined(function <MatrixXd(VectorXd const&
 void UniversalModel::set_slice_by_sample(function <ExternData(ExternData const&, VectorXi const&)> const& f)
 {
     slice_by_sample = f;
-}
-
-void UniversalModel::set_slice_by_para(function <ExternData(ExternData const&, VectorXi const&)> const& f)
-{
-    slice_by_para = f;
 }
 
 void UniversalModel::set_deleter(function<void(ExternData const&)> const& f)

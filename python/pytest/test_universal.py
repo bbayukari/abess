@@ -25,7 +25,7 @@ class TestUniversalModel:
         data = make_multivariate_glm_data(family=family, n=n, p=p, k=k, rho=rho, M=M)
         group = [i for i in range(p) for j in range(M)]
         model = ConvexSparseSolver(
-            model_size=p * M, sample_size=n, intercept_size=M, group=group
+            model_size=p * M, sample_size=n, aux_para_size=M, group=group
         )
         model.set_data(pybind_cabess.Data(data.x, data.y))
         model.set_model_autodiff(
@@ -39,7 +39,6 @@ class TestUniversalModel:
         assert_fit(coef, [c for v in data.coef_ for c in v])
 
         model.thread = 0
-        model.set_slice_by_para(pybind_cabess.slice_by_para)
         model.set_deleter(pybind_cabess.deleter)
         model.path_type = "gs"
         model.fit()
@@ -63,15 +62,15 @@ class TestUniversalModel:
         group = [i for i in range(p) for j in range(M)]
 
         model = ConvexSparseSolver(
-            model_size=p * M, sample_size=n, intercept_size=M, group=group
+            model_size=p * M, sample_size=n, aux_para_size=M, group=group
         )
 
         @jit
-        def f(para, intercept, data):
-            m = jnp.size(intercept)
+        def f(para, aux_para, data):
+            m = jnp.size(aux_para)
             p = data[0].shape[1]
             return jnp.sum(
-                jnp.square(data[1] - data[0] @ para.reshape(p, m) - intercept)
+                jnp.square(data[1] - data[0] @ para.reshape(p, m) - aux_para)
             )
 
         model.set_data((jnp.array(data.x), jnp.array(data.y)))
