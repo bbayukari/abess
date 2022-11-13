@@ -26,7 +26,6 @@ using VectorXdual2nd = Eigen::Matrix<dual2nd,-1,1>;
 using std::function;
 using std::pair;
 
-using optim_function = function<double(const VectorXd&, VectorXd*, void*)>;
 using nlopt_function = double (*)(unsigned n, const double* x, double* grad, void* f_data);
 
 class UniversalModel;
@@ -57,7 +56,6 @@ public:
     Eigen::Index rows() const; // getter of sample_size
     Eigen::Index cols() const; // getter of effective_para
     UniversalData slice_by_sample(const VectorXi& target_sample_index);
-    optim_function get_optim_function(double lambda); // create a function which can be optimized by OptimLib 
     nlopt_function get_nlopt_function(double lambda); // create a function which can be optimized by nlopt
     double loss(const VectorXd& effective_para, const VectorXd& intercept, double lambda); // compute the loss with effective_para
     double gradient(const VectorXd& effective_para, const VectorXd& intercept, Eigen::Map<VectorXd>& gradient, double lambda); // compute the gradient of effective_para

@@ -54,21 +54,6 @@ Eigen::Index UniversalData::rows() const
     return sample_size;
 }
 
-optim_function UniversalData::get_optim_function(double lambda)
-{
-    return [this,lambda](const VectorXd& effective_para_and_intercept, VectorXd* gradient, void* data) {
-        VectorXd intercept = effective_para_and_intercept.head(effective_para_and_intercept.size() - this->effective_size);
-        VectorXd effective_para = effective_para_and_intercept.tail(this->effective_size);
-        if (gradient) {
-            Map<VectorXd> grad(gradient->data(), gradient->size());
-            return this->gradient(effective_para, intercept, grad, lambda);
-        }
-        else {
-            return this->loss(effective_para, intercept, lambda);
-        }
-    };
-}
-
 nlopt_function UniversalData::get_nlopt_function(double lambda) 
 {
     this->lambda = lambda;
