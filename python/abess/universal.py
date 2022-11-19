@@ -2,6 +2,7 @@ from sklearn.base import BaseEstimator
 import numpy as np
 from .pybind_cabess import pywrap_Universal
 from .pybind_cabess import UniversalModel
+from .pybind_cabess import init_spdlog
 from .utilities import check_positive_integer, check_non_negative_integer
 
 class ConvexSparseSolver(BaseEstimator):
@@ -419,7 +420,7 @@ class ConvexSparseSolver(BaseEstimator):
         self.test_loss_ = result[3]
         self.ic_ = result[4]
 
-    def set_model_autodiff(self, loss, gradient, hessian):
+    def set_model_autodiff(self, loss_overloaded):
         r"""
         Register callback function:
 
@@ -427,9 +428,10 @@ class ConvexSparseSolver(BaseEstimator):
         ----------
         func : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
         """
-        self.model.set_loss_of_model(loss)
-        self.model.set_gradient_autodiff(gradient)
-        self.model.set_hessian_autodiff(hessian)
+        self.model.set_loss_of_model(loss_overloaded)
+        self.model.set_gradient_autodiff(loss_overloaded)
+        self.model.set_hessian_autodiff(loss_overloaded)        
+
 
     def set_model_jax(self, loss, jit=False):
         r"""
@@ -500,7 +502,7 @@ class ConvexSparseSolver(BaseEstimator):
         if hessian is not None:
             self.model.set_hessian_user_defined(hessian)
 
-    def set_slice_by_sample(self, func, deleter):
+    def set_split_method(self, func, deleter=None):
         r"""
         Register callback function:
 
@@ -509,7 +511,8 @@ class ConvexSparseSolver(BaseEstimator):
         func : function {}
         """
         self.model.set_slice_by_sample(func)
-        self.model.set_deleter(func)
+        if deleter is not None:
+            self.model.set_deleter(deleter)
 
     def set_init_para(self, func):
         r"""
@@ -524,3 +527,7 @@ class ConvexSparseSolver(BaseEstimator):
     def set_data(self, data):
         r""" """
         self.data = data
+
+    def set_log(self, console_log_level, file_log_level):
+        r""" """
+        init_spdlog(console_log_level, file_log_level)

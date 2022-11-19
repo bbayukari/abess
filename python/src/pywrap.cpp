@@ -5,7 +5,7 @@
 #include "UniversalData.h"
 #include "List.h"
 #include "api.h"
-#include "predefinedModel.h"
+
 
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd, double, double, double> pywrap_GLM(
     Eigen::MatrixXd x_Mat, Eigen::MatrixXd y_Mat, Eigen::VectorXd weight_Vec, int n, int p, int normalize_type,
@@ -143,6 +143,10 @@ pywrap_Universal(ExternData data, UniversalModel model, int model_size, int samp
 }
 
 PYBIND11_MODULE(pybind_cabess, m) {
+    m.def("pywrap_GLM", &pywrap_GLM);
+    m.def("pywrap_PCA", &pywrap_PCA);
+    m.def("pywrap_RPCA", &pywrap_RPCA);
+    m.def("pywrap_Universal", &pywrap_Universal);
     pybind11::class_<UniversalModel>(m, "UniversalModel").def(pybind11::init<>())
         .def("set_loss_of_model", &UniversalModel::set_loss_of_model)
         .def("set_gradient_autodiff", &UniversalModel::set_gradient_autodiff)
@@ -152,19 +156,4 @@ PYBIND11_MODULE(pybind_cabess, m) {
         .def("set_slice_by_sample", &UniversalModel::set_slice_by_sample)
         .def("set_deleter", &UniversalModel::set_deleter)
         .def("set_init_para", &UniversalModel::set_init_para);
-    m.def("pywrap_GLM", &pywrap_GLM);
-    m.def("pywrap_PCA", &pywrap_PCA);
-    m.def("pywrap_RPCA", &pywrap_RPCA);
-    m.def("pywrap_Universal", &pywrap_Universal);
-    // predefine some function for test
-    m.def("init_spdlog", &init_spdlog, pybind11::arg("console_log_level") = SPDLOG_LEVEL_OFF, pybind11::arg("file_log_level") = SPDLOG_LEVEL_INFO);
-    pybind11::class_<PredefinedData>(m, "Data").def(pybind11::init<MatrixXd, MatrixXd>());
-    m.def("loss_linear", &linear_model<double>);
-    m.def("gradient_linear", &linear_model<dual>);
-    m.def("hessian_linear", &linear_model<dual2nd>);
-    m.def("loss_logistic", &logistic_model<double>);
-    m.def("gradient_logistic", &logistic_model<dual>);
-    m.def("hessian_logistic", &logistic_model<dual2nd>);
-    m.def("slice_by_sample", &slice_by_sample);
-    m.def("deleter", &deleter);
 }
