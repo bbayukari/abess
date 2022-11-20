@@ -45,7 +45,7 @@ class TestUniversalModel:
         k = 3
         family = "gaussian"
 
-        data = make_glm_data(family=family, n=n, p=p, k=k, rho=rho)
+        data = make_glm_data(family=family, n=n, p=p, k=k)
 
         model = ConvexSparseSolver(model_size=p, support_size=k)
 

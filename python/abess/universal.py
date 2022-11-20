@@ -5,6 +5,10 @@ from .pybind_cabess import UniversalModel
 from .pybind_cabess import init_spdlog
 from .utilities import check_positive_integer, check_non_negative_integer
 
+def set_log_level(console_log_level=6, file_log_level=6):
+    r""" """
+    init_spdlog(console_log_level, file_log_level)
+
 class ConvexSparseSolver(BaseEstimator):
     r"""
     Adaptive Best-Subset Selection(ABESS) algorithm for
@@ -497,10 +501,15 @@ class ConvexSparseSolver(BaseEstimator):
         """
         if loss is not None:
             self.model.set_loss_of_model(loss)
+        # NOTE: Perfect Forwarding of grad and hess is neccessary for func written in Pybind11_Cpp code 
         if gradient is not None:
-            self.model.set_gradient_user_defined(gradient)
+            self.model.set_gradient_user_defined(
+                lambda arg1, arg2, arg3, arg4: gradient(arg1, arg2, arg3, arg4)
+            )
         if hessian is not None:
-            self.model.set_hessian_user_defined(hessian)
+            self.model.set_hessian_user_defined(
+                lambda arg1, arg2, arg3, arg4: hessian(arg1, arg2, arg3, arg4)
+            )
 
     def set_split_method(self, func, deleter=None):
         r"""
@@ -527,7 +536,3 @@ class ConvexSparseSolver(BaseEstimator):
     def set_data(self, data):
         r""" """
         self.data = data
-
-    def set_log(self, console_log_level, file_log_level):
-        r""" """
-        init_spdlog(console_log_level, file_log_level)
