@@ -24,14 +24,19 @@
 #include <iostream>
 #include "UniversalData.h"
 #ifndef	SPDLOG_ACTIVE_LEVEL
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
-/**
-  * Usage example:
-  *     SPDLOG_ERROR("Some error message with arg: {}", 1);
-  *     SPDLOG_WARN("Positional args are {1} {0}..", "too", "supported");
-  *     SPDLOG_INFO("Support for floats {:03.2f}", 1.23456);
-  *     SPDLOG_DEBUG("Eigen Matrix\n{}", Eigen::MatrixXd::Ones(3, 4));
-  */
+    #ifndef NDEBUG
+        #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
+    #else
+        #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_WARN
+    #endif
+    /**
+     * 0 = trace < DEBUG < INFO < WARN < ERROR < critical < off = 6 
+     * Usage example:
+     *     SPDLOG_ERROR("Some error message with arg: {}", 1);
+     *     SPDLOG_WARN("Positional args are {1} {0}..", "too", "supported");
+     *     SPDLOG_INFO("Support for floats {:03.2f}", 1.23456);
+     *     SPDLOG_DEBUG("Eigen Matrix\n{}", Eigen::MatrixXd::Ones(3, 4));
+     */
 #endif
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/rotating_file_sink.h"

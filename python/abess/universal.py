@@ -436,7 +436,6 @@ class ConvexSparseSolver(BaseEstimator):
         self.model.set_gradient_autodiff(loss_overloaded)
         self.model.set_hessian_autodiff(loss_overloaded)        
 
-
     def set_model_jax(self, loss, jit=False):
         r"""
         Register callback function: loss of model.
@@ -490,7 +489,6 @@ class ConvexSparseSolver(BaseEstimator):
         self.model.set_gradient_user_defined(grad_)
         self.model.set_hessian_user_defined(hessian_)
     
-    # must use name
     def set_model_user_defined(self, loss=None, gradient=None, hessian=None):
         r"""
         Register callback function: loss of model.
@@ -523,7 +521,7 @@ class ConvexSparseSolver(BaseEstimator):
         if deleter is not None:
             self.model.set_deleter(deleter)
 
-    def set_init_para(self, func):
+    def set_init_parameters_method(self, func):
         r"""
         Register callback function:
 

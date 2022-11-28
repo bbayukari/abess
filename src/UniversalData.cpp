@@ -100,11 +100,6 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& aux_
     gradient.resize(size);
     hessian.resize(size, size);
 
-    if(effective_para.size() != this->effective_size){
-        SPDLOG_ERROR("the size of the effective parameters is different!");
-        return;
-    }
-
     VectorXi compute_para_index;
     VectorXd const* para_ptr;
     VectorXd complete_para;
@@ -116,7 +111,7 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& aux_
     
     if (model->hessian_user_defined) {
         gradient = model->gradient_user_defined(*para_ptr, aux_para, *this->data, compute_para_index).tail(size);
-        hessian = model->hessian_user_defined(*para_ptr, aux_para, *this->data, compute_para_index);      
+        hessian = model->hessian_user_defined(*para_ptr, aux_para, *this->data, compute_para_index);  
     }
     else { // autodiff
         dual2nd v;

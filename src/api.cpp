@@ -561,6 +561,7 @@ List abessUniversal_API(ExternData data, UniversalModel model, int model_size, i
 #else
 
 #endif // R_BUILD
+    SPDLOG_INFO("SCOPE begin!");
     UniversalData x(model_size, sample_size, data, &model); // UniversalData is just like a matrix.
     MatrixXd y = MatrixXd::Zero(sample_size, aux_para_size); // Invalid variable, create it just for interface compatibility
     int normalize_type = 0; // offer normalized data if need
@@ -581,6 +582,6 @@ List abessUniversal_API(ExternData data, UniversalModel model, int model_size, i
     for (int i = 0; i < algorithm_list_size; i++) {
         delete algorithm_list[i];
     }
-
+    SPDLOG_INFO("SCOPE end!");
     return out_result;
 }

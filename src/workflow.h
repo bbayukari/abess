@@ -81,7 +81,6 @@ List abessWorkflow(T4 &x, T1 &y, int n, int p, int normalize_type, Eigen::Vector
 #ifndef R_BUILD
     std::srand(123);
 #endif
-    SPDLOG_INFO("abess fit begin");
     int algorithm_list_size = static_cast<int>(algorithm_list.size());
 
     // Size of the candidate set:

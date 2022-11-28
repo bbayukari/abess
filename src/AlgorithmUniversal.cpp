@@ -35,7 +35,7 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
 
     bool success = result > 0;
     if(!success){
-        SPDLOG_WARN("failed to optimize, state: {} ", nlopt_result_to_string(result));
+        SPDLOG_WARN("nlopt failed to optimize, state: {} ", nlopt_result_to_string(result));
     }
     aux_para = optim_para.head(aux_para.size());
     active_para = optim_para.tail(active_para.size());
