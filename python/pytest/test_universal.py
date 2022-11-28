@@ -5,7 +5,7 @@ from abess import pybind_cabess
 import pytest
 import numpy as np
 from utilities import assert_fit, assert_value
-import jax.numpy as jnp
+import importlib
 
 
 
@@ -16,6 +16,7 @@ class TestUniversalModel:
 
     @staticmethod
     def test_linear_model_jax():
+        jnp = importlib.import_module("jax.numpy")
         np.random.seed(1)
         n = 30
         p = 5
@@ -50,8 +51,8 @@ class TestUniversalModel:
         model = ConvexSparseSolver(model_size=p, support_size=k)
 
         def loss(para, aux_para, data):
-            return jnp.sum(
-                jnp.square(data.y - data.x @ para)
+            return np.sum(
+                np.square(data.y - data.x @ para)
             )
         def grad(para, aux_para, data, compute_para_index):
             return -2 * data.x[:,compute_para_index].T @ (data.y - data.x @ para)
@@ -66,6 +67,7 @@ class TestUniversalModel:
     
     @staticmethod
     def test_linear_model_cv():
+        jnp = importlib.import_module("jax.numpy")
         np.random.seed(1)
         n = 30
         p = 5
@@ -96,6 +98,7 @@ class TestUniversalModel:
     
     @staticmethod
     def test_linear_model_multi():
+        jnp = importlib.import_module("jax.numpy")
         np.random.seed(1)
         n = 30
         p = 5
@@ -120,3 +123,7 @@ class TestUniversalModel:
         model.fit((jnp.array(data.x), jnp.array(data.y)))
         
         assert_fit(model.coef_, [c for v in data.coef_ for c in v])
+
+
+if __name__ == "__main__":
+    TestUniversalModel.test_linear_model_user_define()

@@ -1,8 +1,7 @@
 from sklearn.base import BaseEstimator
 import numpy as np
-from .pybind_cabess import pywrap_Universal
-from .pybind_cabess import UniversalModel
-from .pybind_cabess import init_spdlog
+import importlib
+from .pybind_cabess import pywrap_Universal, UniversalModel, init_spdlog
 from .utilities import check_positive_integer, check_non_negative_integer
 
 def set_log_level(console_log_level=6, file_log_level=6):
@@ -436,7 +435,7 @@ class ConvexSparseSolver(BaseEstimator):
         self.model.set_gradient_autodiff(loss_overloaded)
         self.model.set_hessian_autodiff(loss_overloaded)        
 
-    def set_model_jax(self, loss, jit=False):
+    def set_model_jax(self, loss):
         r"""
         Register callback function: loss of model.
 
@@ -444,24 +443,16 @@ class ConvexSparseSolver(BaseEstimator):
         ----------
         loss : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
         """
-        from jax import jacfwd, jacrev
-        from jax import grad as jax_grad
-        import jax.numpy as jnp
+        jacfwd = importlib.import_module("jax.jacfwd")
+        jacrev = importlib.import_module("jax.jacrev")
+        jax_grad = importlib.import_module("jax.grad")
+        jnp = importlib.import_module("jax.numpy")
         
-        if jit:
-            from jax import jit
-            loss = jit(loss)
-        else:
-            def jit(f):
-                return f
-
         # the function for differential
-        @jit
         def func_(para_compute, aux_para, para, ind, data):
             para_complete = para.at[ind].set(para_compute)
             return loss(para_complete, aux_para, data)
 
-        @jit
         def grad_(para, aux_para, data, compute_para_index):
             para_j = jnp.array(para)
             aux_para_j = jnp.array(aux_para)
@@ -474,7 +465,6 @@ class ConvexSparseSolver(BaseEstimator):
                 )
             )
 
-        @jit
         def hessian_(para, aux_para, data, compute_para_index):
             para_j = jnp.array(para)
             aux_para_j = jnp.array(aux_para)
