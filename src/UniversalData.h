@@ -52,8 +52,10 @@ public:
     UniversalData() = default;
     UniversalData(Eigen::Index model_size, Eigen::Index sample_size, ExternData& data, UniversalModel* model);
     UniversalData slice_by_para(const VectorXi& target_para_index); // used in util func X_seg() and slice()
+
     Eigen::Index rows() const; // getter of sample_size
     Eigen::Index cols() const; // getter of effective_para
+    const VectorXi& get_effective_para_index() const; // getter of effective_para_index
     UniversalData slice_by_sample(const VectorXi& target_sample_index);
     nlopt_function get_nlopt_function(double lambda); // create a function which can be optimized by nlopt
     double loss(const VectorXd& effective_para, const VectorXd& aux_para, double lambda); // compute the loss with effective_para

@@ -235,7 +235,6 @@ class Algorithm {
             this->A_out = Eigen::VectorXi::LinSpaced(N, 0, N - 1);
             // T2 beta_old = this->beta;
             // T3 coef0_old = this->coef0;
-            SPDLOG_DEBUG("optimization\nactive set: range({})", N);
             bool success = this->primary_model_fit(train_x, train_y, train_weight, this->beta, this->coef0, DBL_MAX,
                                                    this->A_out, g_index, g_size);
             // if (!success){
@@ -264,7 +263,6 @@ class Algorithm {
         T4 X_A = X_seg(train_x, train_n, A_ind, this->model_type);
         T2 beta_A;
         slice(this->beta, A_ind, beta_A);
-        SPDLOG_DEBUG("optimization\nactive set: {}", A_ind.transpose());
         // if (this->algorithm_type == 6)
         // {
 
@@ -344,6 +342,7 @@ class Algorithm {
         //     4. if U changed, exit
         int iter = 0;
         while (iter++ < this->max_iter) {
+            //("important search iteration");
             // mapping
             if (this->U_size == N) {
                 // If consider all groups, it is no need to map or give a new index.
@@ -395,7 +394,7 @@ class Algorithm {
             int num = -1;
             while (true) {
                 num++;
-
+                //SPDLOG_DEBUG("splicing iteration");
                 Eigen::VectorXi A_ind = find_ind(A_U, g_index_U, g_size_U, U_ind.size(), this->U_size);
                 T4 X_A = X_seg(*X_U, n, A_ind, this->model_type);
                 T2 beta_A;
@@ -508,12 +507,12 @@ class Algorithm {
 
         double L;
         for (int k = C_max; k >= 1;) {
+            // SPDLOG_DEBUG("splicing operator, exchange num is {}", k);
             A_exchange = diff_union(A, s1, s2);
             A_ind_exchage = find_ind(A_exchange, g_index, g_size, (this->beta).rows(), N);
             X_A_exchage = X_seg(X, n, A_ind_exchage, this->model_type);
             slice(beta, A_ind_exchage, beta_A_exchange);
             coef0_A_exchange = coef0;
-            SPDLOG_DEBUG("optimization\nactive set: {}", A_ind_exchage.transpose());
             bool success = this->primary_model_fit(X_A_exchage, y, weights, beta_A_exchange, coef0_A_exchange,
                                                    train_loss, A_exchange, g_index, g_size);
             // if (success){
@@ -590,7 +589,6 @@ class Algorithm {
 
         this->primary_model_fit_max_iter += FINAL_FIT_ITER_ADD;
         // coef0_old = this->coef0;
-        SPDLOG_DEBUG("optimization\nactive set: {}", A_ind.transpose());
         bool success =
             this->primary_model_fit(X_A, train_y, train_weight, beta_A, this->coef0, DBL_MAX, A, g_index, g_size);
         // if (!success){

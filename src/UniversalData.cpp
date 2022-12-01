@@ -39,6 +39,11 @@ Eigen::Index UniversalData::rows() const
     return sample_size;
 }
 
+const VectorXi& UniversalData::get_effective_para_index() const
+{
+    return effective_para_index;
+}
+
 nlopt_function UniversalData::get_nlopt_function(double lambda) 
 {
     this->lambda = lambda;
@@ -88,7 +93,6 @@ double UniversalData::gradient(const VectorXd& effective_para, const VectorXd& a
         value = val(v);
     }
     
-   
     gradient.tail(effective_size) += 2 * lambda * effective_para;
     return value + lambda * effective_para.squaredNorm();
 }
@@ -111,7 +115,7 @@ void UniversalData::hessian(const VectorXd& effective_para, const VectorXd& aux_
     
     if (model->hessian_user_defined) {
         gradient = model->gradient_user_defined(*para_ptr, aux_para, *this->data, compute_para_index).tail(size);
-        hessian = model->hessian_user_defined(*para_ptr, aux_para, *this->data, compute_para_index);  
+        hessian = model->hessian_user_defined(*para_ptr, aux_para, *this->data, compute_para_index);
     }
     else { // autodiff
         dual2nd v;
@@ -140,7 +144,6 @@ void UniversalData::init_para(VectorXd & active_para, VectorXd & aux_para){
         assignment_Eigen(complete_para, active_para, this->effective_para_index);
         tie(complete_para, aux_para) = model->init_para(complete_para, aux_para, *this->data, this->effective_para_index);
         segment_Eigen(complete_para, active_para, this->effective_para_index);
-
     }
 }
 

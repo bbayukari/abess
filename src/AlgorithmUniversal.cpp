@@ -19,7 +19,7 @@ double abessUniversal::loss_function(UniversalData& active_data, MatrixXd& y, Ve
 bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& active_para, VectorXd& aux_para, double loss0,
     VectorXi& A, VectorXi& g_index, VectorXi& g_size) 
 {
-    SPDLOG_DEBUG("optimization\ninit loss: {}\naux_para:{}\ncoefficient:{}", loss0, aux_para.transpose(), active_para.transpose());    
+    SPDLOG_DEBUG("optimization begin\nactive set: {}\ninit loss: {}\naux_para:{}\npara:{}", active_data.get_effective_para_index().transpose(), loss0, aux_para.transpose(), active_para.transpose());    
     double value = 0.;
     active_data.init_para(active_para, aux_para);
     unsigned optim_size = active_para.size() + aux_para.size();
@@ -39,12 +39,13 @@ bool abessUniversal::primary_model_fit(UniversalData& active_data, MatrixXd& y, 
     }
     aux_para = optim_para.head(aux_para.size());
     active_para = optim_para.tail(active_para.size());
-    SPDLOG_DEBUG("optimization\nfinal loss: {}\naux_para:{}\ncoefficient:{}", value, aux_para.transpose(), active_para.transpose());
+    SPDLOG_DEBUG("optimization end\nfinal loss: {}\naux_para:{}\npara:{}", value, aux_para.transpose(), active_para.transpose());
     return success;
 }
 
 void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd& y, VectorXd& para, VectorXd& beta_A, VectorXd& aux_para, VectorXi& A, VectorXi& I, VectorXd& weights, VectorXi& g_index, VectorXi& g_size, int g_num, VectorXi& A_ind, VectorXd& sacrifice, VectorXi& U, VectorXi& U_ind, int num)
 {
+    SPDLOG_DEBUG("sacrifice begin");
     for (int i = 0; i < A.size(); i++) {
         VectorXd gradient_group(g_size(A[i]));
         MatrixXd hessian_group(g_size(A[i]), g_size(A[i]));
@@ -83,6 +84,8 @@ void abessUniversal::sacrifice(UniversalData& data, UniversalData& XA, MatrixXd&
             }
         }
     }
+    SPDLOG_DEBUG("sacrifice end");
+    return;
 }
 
 double abessUniversal::effective_number_of_parameter(UniversalData& X, UniversalData& active_data, MatrixXd& y, VectorXd& weights, VectorXd& beta, VectorXd& active_para, VectorXd& aux_para)

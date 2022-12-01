@@ -23,7 +23,7 @@ from .linear import (
 )
 from .decomposition import (SparsePCA, RobustPCA)
 from .datasets import (make_glm_data, make_multivariate_glm_data)
-from .universal import (ConvexSparseSolver, set_log_level)
+from .universal import (ConvexSparseSolver)
 
 # To be deprecated in version 0.6.0
 from .linear import (  # noqa

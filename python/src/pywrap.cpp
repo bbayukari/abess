@@ -157,5 +157,5 @@ PYBIND11_MODULE(pybind_cabess, m) {
         .def("set_slice_by_sample", &UniversalModel::set_slice_by_sample)
         .def("set_deleter", &UniversalModel::set_deleter)
         .def("set_init_para", &UniversalModel::set_init_para);
-    m.def("init_spdlog", &init_spdlog, pybind11::arg("console_log_level") = SPDLOG_LEVEL_OFF, pybind11::arg("file_log_level") = SPDLOG_LEVEL_INFO);
+    m.def("init_spdlog", &init_spdlog);
 }

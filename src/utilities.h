@@ -30,11 +30,10 @@
         #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_WARN
     #endif
     /**
-     * 0 = trace < DEBUG < INFO < WARN < ERROR < critical < off = 6 
+     * 0 = trace < DEBUG < info < WARN < ERROR < critical < off = 6 
      * Usage example:
-     *     SPDLOG_ERROR("Some error message with arg: {}", 1);
+     *     SPDLOG_ERROR("Some error message with arg: {:03.2f}", 1.23456);
      *     SPDLOG_WARN("Positional args are {1} {0}..", "too", "supported");
-     *     SPDLOG_INFO("Support for floats {:03.2f}", 1.23456);
      *     SPDLOG_DEBUG("Eigen Matrix\n{}", Eigen::MatrixXd::Ones(3, 4));
      */
 #endif
@@ -58,7 +57,7 @@ constexpr int GAMMA_MODEL = 8;
 constexpr int ORDINAL_MODEL = 9;
 constexpr int RPCA_MODEL = 10;
 
-void init_spdlog(int console_log_level = SPDLOG_LEVEL_OFF, int file_log_level = SPDLOG_LEVEL_INFO);
+void init_spdlog(int console_log_level, int file_log_level, const char* log_file_name);
 
 /**
  * @brief Save the sequential fitting result along the parameter searching.

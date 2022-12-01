@@ -4,9 +4,6 @@ import importlib
 from .pybind_cabess import pywrap_Universal, UniversalModel, init_spdlog
 from .utilities import check_positive_integer, check_non_negative_integer
 
-def set_log_level(console_log_level=6, file_log_level=6):
-    r""" """
-    init_spdlog(console_log_level, file_log_level)
 
 class ConvexSparseSolver(BaseEstimator):
     r"""
@@ -180,7 +177,7 @@ class ConvexSparseSolver(BaseEstimator):
         self.is_warm_start = is_warm_start
         self.thread = thread
 
-    def fit(self, data=None):
+    def fit(self, data=None, console_log_level="off", file_log_level="off", log_file_name="logs/scope.log"):
         r"""
         The fit function is used to transfer
         the information of data and return the fit result.
@@ -191,6 +188,38 @@ class ConvexSparseSolver(BaseEstimator):
             Any class which is match to model which is also user-defined before fit, denoted as ExternData.
             It cantains all data that model should be known, like samples, responses, weight.
         """
+        # log level
+        if console_log_level == "off":
+            console_log_level = 6
+        elif console_log_level == "error":
+            console_log_level = 4
+        elif console_log_level == "warning":
+            console_log_level = 3
+        elif console_log_level == "debug":
+            console_log_level = 1
+        elif isinstance(console_log_level, int) and console_log_level >= 0 and console_log_level <= 6:
+            pass
+        else:
+            raise ValueError("console_log_level must be in 'off', 'error', 'warning', 'debug'")
+
+        if file_log_level == "off":
+            file_log_level = 6
+        elif file_log_level == "error":
+            file_log_level = 4
+        elif file_log_level == "warning":
+            file_log_level = 3
+        elif file_log_level == "debug":
+            file_log_level = 1
+        elif isinstance(file_log_level, int) and file_log_level >= 0 and file_log_level <= 6:
+            pass
+        else:
+            raise ValueError("file_log_level must be in 'off', 'error', 'warning', 'debug'")
+
+        if not isinstance(log_file_name, str):
+            raise ValueError("log_file_name must be a string")
+
+        init_spdlog(console_log_level, file_log_level, log_file_name)
+
         # data
         if data is None:
             data = self.data
