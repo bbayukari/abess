@@ -1,7 +1,4 @@
-from abess.universal import ConvexSparseSolver
-from abess.datasets import make_multivariate_glm_data
-from abess.datasets import make_glm_data
-from abess import pybind_cabess
+from abess import ConvexSparseSolver, make_multivariate_glm_data, make_glm_data
 import pytest
 import numpy as np
 from utilities import assert_fit, assert_value
@@ -9,7 +6,7 @@ import importlib
 
 
 
-class TestUniversalModel:
+class TestConvexSparseSolver:
     """
     Test for ConvexSparseSolver
     """
@@ -32,14 +29,14 @@ class TestUniversalModel:
                 jnp.square(data.y - data.x @ para)
             )
 
-        model.set_model_jax(loss)
+        model.set_loss_jax(loss)
 
         model.fit(data)
 
         assert_value(model.coef_, data.coef_)
     
     @staticmethod
-    def test_linear_model_user_define():
+    def test_linear_model_custom():
         np.random.seed(1)
         n = 30
         p = 5
@@ -59,7 +56,7 @@ class TestUniversalModel:
         def hess(para, aux_para, data, compute_para_index):
             return 2 * data.x[:,compute_para_index].T @ data.x[:,compute_para_index]
 
-        model.set_model_user_defined(loss=loss, gradient=grad, hessian=hess)
+        model.set_loss_custom(loss=loss, gradient=grad, hessian=hess)
 
         model.fit(data)
 
@@ -87,12 +84,11 @@ class TestUniversalModel:
             return jnp.sum(
                 jnp.square(data.y - data.x @ para)
             )
-        model.set_model_jax(loss)
-        model.set_data(Data(data.x, data.y))
+        model.set_loss_jax(loss)
 
-        model.set_slice_by_sample(lambda data, index:  Data(data.x[index, :], data.y[index]))
+        model.set_split_method(lambda data, index:  Data(data.x[index, :], data.y[index]))
 
-        model.fit()
+        model.fit(Data(data.x, data.y))
 
         assert_value(model.coef_, data.coef_)
     
@@ -118,12 +114,8 @@ class TestUniversalModel:
             return jnp.sum(
                 jnp.square(data[1] - data[0] @ para.reshape(p, m) - aux_para)
             )
-        model.set_model_jax(f)
+        model.set_loss_jax(f)
 
         model.fit((jnp.array(data.x), jnp.array(data.y)))
         
         assert_fit(model.coef_, [c for v in data.coef_ for c in v])
-
-
-if __name__ == "__main__":
-    TestUniversalModel.test_linear_model_user_define()

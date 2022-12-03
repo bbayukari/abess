@@ -7,100 +7,96 @@ from .utilities import check_positive_integer, check_non_negative_integer
 
 class ConvexSparseSolver(BaseEstimator):
     r"""
-    Adaptive Best-Subset Selection(ABESS) algorithm for
-    user defined model.
+    Get sparse optimal solution of convex loss function by sparse-Constrained Optimization via Splicing Iteration (SCOPE) algorithm, which also can be used for variables selection.
+    Specifically, ConvexSparseSolver aims to tackle this problem: min_{x} f(x) s.t. ||x||_0 <= s, where f(x) is a convex loss function and s is the sparsity level. Each element of x can be seen as a variable, and the nonzero elements of x are the selected variables.
 
     Parameters
     ----------
-    model_size : int
-        The total number of variables which need be selected, denoted as p.
-    aux_para_size : int, optional, default=0
-        The total number of variables which need not be selected.
-        This is for the convenience of some models, like the aux_para
-        of linear regression.
-    sample_size : int, optional, default=1
-        sample size, denoted as n.
-    max_iter : int, optional, default=20
+    + model_size : int
+        Dimension of the optimization problem, which is also the total number of variables that will be considered to select or not, denoted as p.
+    + sample_size : int, optional, default=1
+        sample size, only used in the selection of support size, denoted as n.
+    + support_size : int or array-like, optional, default=None
+        The sparsity level, which is the number of nonzero elements of the optimal solution, denoted as s. If support_size is an array-like, it should be a list of integers. 
+        default is `range(min(n, int(n/(log(log(n))log(p)))))`
+        Used only when path_type = "seq".
+    + aux_para_size : int, optional, default=0
+        The total number of auxiliary variables, which means that they need to be considered in optimization but always be selected.
+        This is for the convenience of some models, for example, the intercept in linear regression is an auxiliary variable.
+    + cv : int, optional, default=1
+        The folds number when use the cross-validation method.
+        - If `cv`=1, cross-validation would not be used.
+        - If `cv`>1, support size will be chosen by CV's test loss,
+          instead of information criterion.
+    + cv_fold_id: array-like with shape (n,), optional, default=None
+        An array indicates different folds in CV.
+        Samples in the same fold should be given the same number.
+        The number of different masks should be equal to `cv`.
+        Used only when `cv` > 1.
+    + group : array-like with shape (p,), optional, default=range(p)
+        The group index for each variable, and it must be an incremental integer array starting from 0 without gap.
+        The variables in the same group must be adjacent, and they will be selected together or not.
+        Here are wrong examples: [0,2,1,2] (not incremental), [1,2,3,3] (not start from 0), [0,2,2,3] (there is a gap).
+        It's worth mentioning that the concept "a variable" means "a group of variables" in fact. For example, "support_size=[3]" means there will be 3 groups of variables selected rather than 3 variables,
+        and "always_include=[0,3]" means the 0-th and 3-th groups must be selected.
+    + max_iter : int, optional, default=20
         Maximum number of iterations taken for the
         splicing algorithm to converge.
         The limitation of loss reduction can guarantee the convergence.
         The number of iterations is only to simplify the implementation.
-    max_exchange_num : int, optional, default=2
-        Maximum exchange number in splicing.
-    splicing_type : {"halve", "taper"}, optional, default="halve"
+    + max_exchange_num : int, optional, default=5
+        Maximum exchange number when splicing.
+    + splicing_type : {"halve", "taper"}, optional, default="halve"
         The type of reduce the exchange number in each iteration
         from max_exchange_num.
         "halve" for decreasing by half, "taper" for decresing by one.
-    path_type : {"seq", "gs"}, optional, default="seq"
+    + path_type : {"seq", "gs"}, optional, default="seq"
         The method to be used to select the optimal support size.
-        - For path_type = "seq", we solve the best subset selection
-          problem for each size in support_size.
-        - For path_type = "gs", we solve the best subset selection
-          problem with support size ranged in gs_bound, where the
-          specific support size to be considered is
-          determined by golden section.
-    support_size : array-like, optional
-        default=range(min(n, int(n/(log(log(n))log(p)))))
-        An integer vector representing the alternative support sizes.
-        Used only when path_type = "seq".
-    gs_lower_bound : int, optional, default=0
+        - For path_type = "seq", we solve the problem for all sizes in `support_size` successively.
+        - For path_type = "gs", we solve the problem with support size ranged between `gs_lower_bound` and `gs_higher_bound`, where the specific support size to be considered is determined by golden section.
+    + gs_lower_bound : int, optional, default=0
         The lower bound of golden-section-search for sparsity searching.
         Used only when path_type = "gs".
-    gs_higher_bound : int, optional, default=min(n, int(n/(log(log(n))log(p))))
+    + gs_higher_bound : int, optional, default=`min(n, int(n/(log(log(n))log(p))))`
         The higher bound of golden-section-search for sparsity searching.
         Used only when path_type = "gs".
-    cv : int, optional, default=1
-        The folds number when use the cross-validation method.
-        - If cv=1, cross-validation would not be used.
-        - If cv>1, support size will be chosen by CV's test loss,
-          instead of IC.
-    cv_fold_id: array-like, shape (n_samples,), optional, default=None
-        An array indicates different folds in CV.
-        Samples in the same fold should be given the same number.
-        The number of different masks should be equal to `cv`.
-        Used only when cv > 1.
-    ic_type : {'aic', 'bic', 'gic', 'ebic'}, optional, default='gic'
+    + ic_type : {'aic', 'bic', 'gic', 'ebic'}, optional, default='gic'
         The type of information criterion for choosing the support size.
-        Used only when cv = 1.
-    ic_coef : float, optional, default=1.0
+        Used only when `cv` = 1.
+    + ic_coef : float, optional, default=1.0
         The coefficient of information criterion.
-        Used only when cv = 1.
-    regular_coef : float, optional, default=0.0
+        Used only when `cv` = 1.
+    + regular_coef : float, optional, default=0.0
         L2 regularization coefficient for computational stability.
-    always_select : array-like, optional, default=[]
+        Note that if `regular_coef` is not 0 and the length of `support_size` is not 1, algorithm will compute full hessian matrix of loss function, which is time-consuming.
+    + always_select : array-like, optional, default=[]
         An array contains the indexes of variables which must be selected.
-    screening_size : int, optional, default=-1
-        The number of variables remaining after the screening before variables select.
-        It should be a non-negative number smaller than p,
+        Its effect is simillar to see these variables as auxiliary variables and set `aux_para_size`. 
+    + screening_size : int, optional, default=-1
+        The number of variables remaining after the screening before variables select. Screening is used to reduce the computational cost.
+        `screening_size` should be a non-negative number smaller than p,
         but larger than any value in support_size.
         - If screening_size=-1, screening will not be used.
         - If screening_size=0, screening_size will be set as
-          :math:`\\min(p, int(n / (\\log(\\log(n))\\log(p))))`.
-    important_search : int, optional, default=128
-        The number of important variables which need be splicing.
-        If it's too large, it would greatly increase runtime.
-    group : array-like, optional, default=range(p)
-        The group index for each variable, and it must be an incremental integer array starting from 0 without gap.
-        Here are wrong examples: [0,2,1,2](not incremental), [1,2,3,3](not start from 0), [0,2,2,3](there is a gap).
-        The variables in the same group must be adjacent, and they will be selected together or not.
-        Before use group, it's worth mentioning that the concept "a variable" means "a group of variables" in fact.
-        For example, "support_size=[3]" means there will be 3 groups of variables selected rather than 3 variables,
-        and "always_include=[0,3]" means the 0-th and 3-th groups must be selected.
-    init_active_set : array-like, optional, default=[]
+          `min(p, int(n / (log(log(n))log(p))))`.
+    + important_search : int, optional, default=128
+        The number of important variables which need be splicing. 
+        This is used to reduce the computational cost. If it's too large, it would greatly increase runtime.
+    + init_active_set : array-like, optional, default=[]
         The index of the variable in initial active set.
-    is_warm_start : bool, optional, default=True
-        When tuning the optimal parameter combination, whether to use the last solution
-        as a warm start to accelerate the iterative convergence of the splicing algorithm.
-    thread : int, optional, default=1
-        Max number of multithreads.
+    + is_warm_start : bool, optional, default=True
+        When tuning the optimal parameter combination, whether to use the last solution as a warm start to accelerate the iterative convergence of the splicing algorithm.
+    + thread : int, optional, default=1
+        Max number of multithreads. Only used for cross-validation.
         - If thread = 0, the maximum number of threads supported by
           the device will be used.
+
     Attributes
     ----------
-    coef_ : array-like, shape(p_features, )
-        Estimated coefficients for the best subset selection problem.
-    aux_para_ : array-like, shape(M_responses,)
-        The aux_para in the model.
+    coef_ : array-like, shape(p, )
+        The sparse optimal solution
+    aux_para_ : array-like, shape(`aux_para_size`,)
+        The aux_para of the model.
     ic_ : float
         If cv=1, it stores the score under chosen information criterion.
     test_loss_ : float
@@ -109,9 +105,31 @@ class ConvexSparseSolver(BaseEstimator):
         The loss on training data.
     regularization_: float
         The best L2 regularization coefficient.
+
     Examples
     --------
+        from abess import ConvexSparseSolver, make_glm_data
+        import numpy as np
+        import jax.numpy as jnp
 
+        n = 30
+        p = 5
+        k = 3
+        family = "gaussian"
+        data = make_glm_data(family=family, n=n, p=p, k=k)
+
+        model = ConvexSparseSolver(model_size=p, support_size=k)
+
+        def loss(para, aux_para, data):
+            return jnp.sum(
+                jnp.square(data.y - data.x @ para)
+            )
+        model.set_loss_jax(loss)
+
+        model.fit(data)
+
+        beta, intercept = model.get_solution()
+        support_set = model.selected_variables()
 
     References
     ----------
@@ -179,14 +197,18 @@ class ConvexSparseSolver(BaseEstimator):
 
     def fit(self, data=None, console_log_level="off", file_log_level="off", log_file_name="logs/scope.log"):
         r"""
-        The fit function is used to transfer
-        the information of data and return the fit result.
+        Fit the model defined by `set_model_jax()`, `set_model_autodiff()` or `set_model_user_defined()` according to the given training data.
 
         Parameters
         ----------
-        data : user-defined class
-            Any class which is match to model which is also user-defined before fit, denoted as ExternData.
-            It cantains all data that model should be known, like samples, responses, weight.
+        + data : custom class
+            Any class which is match to loss function which is also custom before fit. It can cantain all data that loss should be known, like samples, responses, weight.
+        + console_log_level : str, optional, default="off"
+            The level of output log to console, which can be "off", "error", "warning", "debug".
+        + file_log_level : str, optional, default="off"
+            The level of output log to file, which can be "off", "error", "warning", "debug".
+        + log_file_name : str, optional, default="logs/scope.log"
+            The name of log file.
         """
         # log level
         if console_log_level == "off":
@@ -452,31 +474,30 @@ class ConvexSparseSolver(BaseEstimator):
         self.test_loss_ = result[3]
         self.ic_ = result[4]
 
-    def set_model_autodiff(self, loss_overloaded):
+    def set_loss_autodiff(self, loss_overloaded):
         r"""
-        Register callback function:
+        Register loss function as callback function. This method only can register loss function with Cpp library `autodiff`.
 
         Parameters
         ----------
-        func : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
+        + loss_overloaded : a wrap of Cpp overloaded function which defined the objective of optimization, examples can be found in https://github.com/abess-team/scope_example.
         """
         self.model.set_loss_of_model(loss_overloaded)
         self.model.set_gradient_autodiff(loss_overloaded)
         self.model.set_hessian_autodiff(loss_overloaded)        
 
-    def set_model_jax(self, loss):
+    def set_loss_jax(self, loss):
         r"""
-        Register callback function: loss of model.
+        Register loss function as callback function. This method only can register loss function with Python package `jax`.
 
         Parameters
         ----------
-        loss : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
+        + loss : function {'para': jax.numpy.DeviceArray, 'aux_para': jax.numpy.DeviceArray, 'data': custom class, 'return': float}
+            Defined the objective of optimization.
         """
-        jacfwd = importlib.import_module("jax.jacfwd")
-        jacrev = importlib.import_module("jax.jacrev")
-        jax_grad = importlib.import_module("jax.grad")
+        jax = importlib.import_module("jax")
         jnp = importlib.import_module("jax.numpy")
-        
+
         # the function for differential
         def func_(para_compute, aux_para, para, ind, data):
             para_complete = para.at[ind].set(para_compute)
@@ -488,7 +509,7 @@ class ConvexSparseSolver(BaseEstimator):
             para_compute_j = jnp.array(para[compute_para_index])
             return np.array(
                 jnp.append(
-                    *jax_grad(func_, (1, 0))(
+                    *jax.grad(func_, (1, 0))(
                         para_compute_j, aux_para_j, para_j, compute_para_index, data
                     )
                 )
@@ -499,7 +520,7 @@ class ConvexSparseSolver(BaseEstimator):
             aux_para_j = jnp.array(aux_para)
             para_compute_j = jnp.array(para[compute_para_index])
             return np.array(
-                jacfwd(jacrev(func_))(
+                jax.jacfwd(jax.jacrev(func_))(
                     para_compute_j, aux_para_j, para_j, compute_para_index, data
                 )
             )
@@ -508,13 +529,18 @@ class ConvexSparseSolver(BaseEstimator):
         self.model.set_gradient_user_defined(grad_)
         self.model.set_hessian_user_defined(hessian_)
     
-    def set_model_user_defined(self, loss=None, gradient=None, hessian=None):
+    def set_loss_custom(self, loss=None, gradient=None, hessian=None):
         r"""
-        Register callback function: loss of model.
+        Register loss function and its gradient and hessian as callback function.
 
         Parameters
         ----------
-        loss : function {'para': array-like, 'aux_para': array-like, 'data': ExternData, 'return': float}
+        + loss : function {'para': array-like, 'aux_para': array-like, 'data': custom class, 'return': float}
+            Defined the objective of optimization.
+        + gradient : function {'para': array-like, 'aux_para': array-like, 'data': custom class, 'compute_index': array-like, 'return': array-like}
+            Defined the gradient of loss function, return the gradient of `aux_para` and the parameters in `compute_index`.
+        + hessian : function {'para': array-like, 'aux_para': array-like, 'data': custom class, 'compute_index': array-like, 'return': 2D array-like}
+            Defined the hessian of loss function, return the hessian matrix of the parameters in `compute_index`.
         """
         if loss is not None:
             self.model.set_loss_of_model(loss)
@@ -528,28 +554,46 @@ class ConvexSparseSolver(BaseEstimator):
                 lambda arg1, arg2, arg3, arg4: hessian(arg1, arg2, arg3, arg4)
             )
 
-    def set_split_method(self, func, deleter=None):
+    def set_split_method(self, spliter, deleter=None):
         r"""
-        Register callback function:
+        Register `spliter` as a callback function to split data into training set and validation set for cross-validation.
 
         Parameters
         ----------
-        func : function {}
+        + spliter : function {'data': custom class, 'index': array-like, 'return': custom class}
+            Filter samples in the `data` within `index`.
+        + deleter : function {'data': custom class}
+            If the custom class `data` is defined in Cpp, it is necessary to register its destructor as callback function `deleter` to avoid memory leak. This isn't necessary for Python class because Python has its own garbage collection mechanism.
         """
-        self.model.set_slice_by_sample(func)
+        self.model.set_slice_by_sample(spliter)
         if deleter is not None:
             self.model.set_deleter(deleter)
 
     def set_init_parameters_method(self, func):
         r"""
-        Register callback function:
+        Register a callback function to initialize parameters and auxiliary parameters for each sub-problem of optimization.
 
         Parameters
         ----------
-        func : function {}
+        + func : function {'para': array-like, 'aux_para': array-like, 'data': custom class, 'active_index': array-like, 'return': tuple of array-like}
+            - `para` and `aux_para` are the default initialization of parameters and auxiliary parameters.
+            - `data` is the training set of sub-problem.
+            - `active_index` is the index of parameters needed initialization, the parameters not in `active_index` must be zeros. 
+            - The function should return a tuple of array-like, the first element is the initialization of parameters and the second element is the initialization of auxiliary parameters.
         """
         self.model.set_init_para(func)
 
-    def set_data(self, data):
-        r""" """
-        self.data = data
+    def get_solution(self):
+        r""" 
+        Get the solution of optimization, include the parameters and auxiliary parameters (if exists).
+        """
+        if self.aux_para_size > 0:
+            return self.coef_, self.aux_para_
+        else:
+            return self.coef_
+    
+    def selected_variables(self):
+        r""" 
+        Get the index of selected variables which is the non-zero parameters.
+        """
+        return np.nonzero(self.coef_)[0]
