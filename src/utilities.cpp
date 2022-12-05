@@ -158,6 +158,11 @@ Eigen::VectorXi diff_union(Eigen::VectorXi A, Eigen::VectorXi &B, Eigen::VectorX
 
 Eigen::VectorXi min_k(Eigen::VectorXd &vec, int k, bool sort_by_value) {
     Eigen::VectorXi ind = Eigen::VectorXi::LinSpaced(vec.size(), 0, vec.size() - 1);  // [0 1 2 3 ... N-1]
+    // shuffle index to avoid repeat results when there are several equal values in vec
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::shuffle(ind.data(), ind.data() + ind.size(), rng);
+
     auto rule = [vec](int i, int j) -> bool { return vec(i) < vec(j); };              // sort rule
     std::nth_element(ind.data(), ind.data() + k, ind.data() + ind.size(), rule);
     if (sort_by_value) {
