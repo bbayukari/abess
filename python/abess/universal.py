@@ -39,6 +39,8 @@ class ConvexSparseSolver(BaseEstimator):
         Here are wrong examples: [0,2,1,2] (not incremental), [1,2,3,3] (not start from 0), [0,2,2,3] (there is a gap).
         It's worth mentioning that the concept "a variable" means "a group of variables" in fact. For example, "support_size=[3]" means there will be 3 groups of variables selected rather than 3 variables,
         and "always_include=[0,3]" means the 0-th and 3-th groups must be selected.
+    + data : custom class, optional, default=None
+        Any class which is match to loss function. It can cantain all data that loss should be known, like samples, responses, weights, etc.
     + max_iter : int, optional, default=20
         Maximum number of iterations taken for the
         splicing algorithm to converge.
@@ -116,7 +118,8 @@ class ConvexSparseSolver(BaseEstimator):
         p = 5
         k = 3
         family = "gaussian"
-        data = make_glm_data(family=family, n=n, p=p, k=k)
+        data = make_glm_data(family=family, n=n, p=p, k=k,
+            coef_ = np.array([0, 1, 0, 1, -1]),
 
         model = ConvexSparseSolver(model_size=p, support_size=k)
 
@@ -128,7 +131,7 @@ class ConvexSparseSolver(BaseEstimator):
 
         model.fit(data)
 
-        beta, intercept = model.get_solution()
+        beta = model.get_solution()
         support_set = model.selected_variables()
 
     References
@@ -152,6 +155,7 @@ class ConvexSparseSolver(BaseEstimator):
         support_size=None,
         aux_para_size=0,
         sample_size=1,
+        data = None,
         max_iter=20,
         max_exchange_num=5,
         splicing_type="halve",
@@ -175,6 +179,7 @@ class ConvexSparseSolver(BaseEstimator):
         self.model_size = model_size
         self.aux_para_size = aux_para_size
         self.sample_size = sample_size
+        self.data = data
         self.max_iter = max_iter
         self.max_exchange_num = max_exchange_num
         self.splicing_type = splicing_type
@@ -195,20 +200,21 @@ class ConvexSparseSolver(BaseEstimator):
         self.is_warm_start = is_warm_start
         self.thread = thread
 
-    def fit(self, data=None, console_log_level="off", file_log_level="off", log_file_name="logs/scope.log"):
+    def fit(self, data, console_log_level="off", file_log_level="off", log_file_name="logs/scope.log"):
         r"""
         Fit the model defined by `set_model_jax()`, `set_model_autodiff()` or `set_model_user_defined()` according to the given training data.
 
         Parameters
         ----------
-        + data : custom class
-            Any class which is match to loss function which is also custom before fit. It can cantain all data that loss should be known, like samples, responses, weight.
+        + data : custom class, optional, default=None
+            Any class which is match to loss function. It can cantain all data that loss should be known, like samples, responses, weights, etc.
         + console_log_level : str, optional, default="off"
-            The level of output log to console, which can be "off", "error", "warning", "debug".
+            The level of output log to console, which can be "off", "error", "warning", "debug". For example, if it's "warning", only error and warning log will be output to console.
         + file_log_level : str, optional, default="off"
-            The level of output log to file, which can be "off", "error", "warning", "debug".
+            The level of output log to file, which can be "off", "error", "warning", "debug". For example, if 
+            it's "off", no log will be output to file.
         + log_file_name : str, optional, default="logs/scope.log"
-            The name of log file.
+            The name (relative path) of log file, which is used to store the log information.
         """
         # log level
         if console_log_level == "off":
@@ -541,6 +547,18 @@ class ConvexSparseSolver(BaseEstimator):
             Defined the gradient of loss function, return the gradient of `aux_para` and the parameters in `compute_index`.
         + hessian : function {'para': array-like, 'aux_para': array-like, 'data': custom class, 'compute_index': array-like, 'return': 2D array-like}
             Defined the hessian of loss function, return the hessian matrix of the parameters in `compute_index`.
+
+        Examples
+        --------
+            import numpy as np
+            def loss(para, aux_para, data):
+                return np.sum(np.square(data.y - data.x @ para))
+            def grad(para, aux_para, data, compute_para_index):
+                return -2 * data.x[:,compute_para_index].T @ (data.y - data.x @ para)
+            def hess(para, aux_para, data, compute_para_index):
+                return 2 * data.x[:,compute_para_index].T @ data.x[:,compute_para_index]
+
+            model.set_loss_custom(loss=loss, gradient=grad, hessian=hess)
         """
         if loss is not None:
             self.model.set_loss_of_model(loss)
@@ -564,6 +582,16 @@ class ConvexSparseSolver(BaseEstimator):
             Filter samples in the `data` within `index`.
         + deleter : function {'data': custom class}
             If the custom class `data` is defined in Cpp, it is necessary to register its destructor as callback function `deleter` to avoid memory leak. This isn't necessary for Python class because Python has its own garbage collection mechanism.
+
+        Examples
+        --------
+            class CustomData:
+                def __init__(self, X, y):
+                    self.X = X
+                    self.y = y
+            
+            solver = ConvexSparseSolver(model_size=5, cv=10)
+            solver.set_split_method(lambda data, index:  Data(data.x[index, :], data.y[index]))
         """
         self.model.set_slice_by_sample(spliter)
         if deleter is not None:
