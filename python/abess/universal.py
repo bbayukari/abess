@@ -494,15 +494,39 @@ class ConvexSparseSolver(BaseEstimator):
 
     def set_loss_jax(self, loss):
         r"""
-        Register loss function as callback function. This method only can register loss function with Python package `jax`.
+        Register loss function as callback function. This method only can register loss function with Python package `JAX`.
 
         Parameters
         ----------
-        + loss : function {'para': jax.numpy.DeviceArray, 'aux_para': jax.numpy.DeviceArray, 'data': custom class, 'return': float}
-            Defined the objective of optimization.
+        + loss : function('para': jax.numpy.DeviceArray, 'aux_para': jax.numpy.DeviceArray, 'data': custom class) ->  float or function('para': jax.numpy.DeviceArray, 'data': custom class) -> float
+            Defined the objective of optimization, must be written in JAX.
+
+        Examples
+        --------
+            import jax.numpy as jnp
+            from abess import ConvexSparseSolver
+            
+            class CustomData:
+                def __init__(self, x, y):
+                    self.x = x
+                    self.y = y
+
+            def linear_no_intercept(para, data):
+                return jnp.sum(jnp.square(data.x @ para - data.y))
+
+            def linear_with_intercept(para, aux_para, data):
+                return jnp.sum(jnp.square(data.x @ para + aux_para - data.y))
+            
+            solver1 = ConvexSparseSolver(10)
+            solver1.set_loss_jax(linear_no_intercept)
+
+            solver2 = ConvexSparseSolver(10, aux_para_size=1)
+            solver2.set_loss_jax(linear_with_intercept)
         """
         jax = importlib.import_module("jax")
         jnp = importlib.import_module("jax.numpy")
+
+        loss = ConvexSparseSolver.__aux_para_decorator(loss)
 
         # the function for differential
         def func_(para_compute, aux_para, para, ind, data):
@@ -625,3 +649,15 @@ class ConvexSparseSolver(BaseEstimator):
         Get the index of selected variables which is the non-zero parameters.
         """
         return np.nonzero(self.coef_)[0]
+
+    def __aux_para_decorator(loss):
+        if loss.__code__.co_argcount == 3:
+            return loss
+        elif loss.__code__.co_argcount == 2:
+            def loss_(para, aux_para, data):
+                return loss(para, data)
+            return loss_
+        else:
+            raise ValueError("The loss function should have 2 or 3 arguments.")
+
+        
